@@ -6,32 +6,32 @@ This is a **logical context cache** for source regions, not a model provider’s
 
 Same model. Same task. Same repository.
 
-Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 12.7 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
+Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 15.8 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
 
-**Headline: equal success, far fewer repository calls and tokens.** 12/12 both conditions. Repo search/read calls −95.8% (191 → 8). Repo tokens including LEDGER-injected context −72.4% (84,396 → 23,269).
+**Headline: equal success, far fewer repository calls and tokens.** 12/12 both conditions. Repo search/read calls −95.3% (191 → 9). Repo tokens including LEDGER-injected context −72.0% (84,396 → 23,647).
 
 | Condition | Success | Repo search/read calls | Total tool calls (incl. LEDGER) | Repo tokens (incl. injected) | Median time to target | Mean calls to target |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 12/12 | 191 | 191 | 84,396 | 0.389 s | 2.167 |
-| LEDGER | 12/12 | 8 | 64 | 23,269 | 0.436 s | 1.0 |
-| Change | equal | −95.8% | −66.5% | −72.4% | +12.1% | −53.9% |
+| Baseline | 12/12 | 191 | 191 | 84,396 | 0.468 s | 2.167 |
+| LEDGER | 12/12 | 9 | 65 | 23,647 | 0.522 s | 1.0 |
+| Change | equal | −95.3% | −66.0% | −72.0% | +11.5% | −53.9% |
 
-Controller on this run: cache hit rate 0.909 · prefetch precision 0.033 (30 prefetches, 1 later used — all on the renewal-discount family; held-out tasks issued 0) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
+Controller on this run: cache hit rate 0.888 · prefetch precision 0.5 (6 prefetches, 3 later used — unused call successors of HIGH-score parents only; renewal-discount was 1/1; held-out tasks issued 0) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
 
-Median time-to-target is worse (+12.1%). That clock includes the coverage-traced pytest LEDGER runs first so the program trace can join the agent trace; baseline’s pytest is untraced and cheaper. Calls-to-target is better (1.0 vs 2.167): the target region is already in the first bundle. Do not read the time delta as a localization regression.
+Median time-to-target is worse (+11.5%). That clock includes the coverage-traced pytest LEDGER runs first so the program trace can join the agent trace; baseline’s pytest is untraced and cheaper. Calls-to-target is better (1.0 vs 2.167): the target region is already in the first bundle. Do not read the time delta as a localization regression.
 
 | Task | Family | Base ✓ | LEDGER ✓ | Base calls | LEDGER calls | Base tokens | LEDGER tokens | Δ tokens |
 |---|---|:-:|:-:|---:|---:|---:|---:|---:|
-| renewal-discount | bug | ✓ | ✓ | 20 | 7 | 11,163 | 2,495 | −77.6% |
-| calculate-total | cross-layer | ✓ | ✓ | 18 | 6 | 7,465 | 2,147 | −71.2% |
-| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,706 | 1,633 | −75.6% |
-| renewal-controller | cross-layer | ✓ | ✓ | 10 | 4 | 4,703 | 1,761 | −62.6% |
-| failing-test | bug | ✓ | ✓ | 20 | 7 | 9,995 | 2,470 | −75.3% |
-| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,301 | 2,422 | −74.0% |
-| tax-adapter | cross-layer | ✓ | ✓ | 12 | 5 | 3,674 | 1,879 | −48.9% |
-| schema-invoice | cross-layer | ✓ | ✓ | 16 | 4 | 7,672 | 1,452 | −81.1% |
-| repeat-loyalty-lookup | repeated | ✓ | ✓ | 18 | 6 | 8,376 | 2,150 | −74.3% |
-| webhook-renewal | cross-layer | ✓ | ✓ | 13 | 5 | 4,831 | 2,147 | −55.6% |
+| renewal-discount | bug | ✓ | ✓ | 20 | 7 | 11,163 | 2,548 | −77.2% |
+| calculate-total | cross-layer | ✓ | ✓ | 18 | 6 | 7,465 | 2,115 | −71.7% |
+| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,706 | 1,576 | −76.5% |
+| renewal-controller | cross-layer | ✓ | ✓ | 10 | 4 | 4,703 | 1,748 | −62.8% |
+| failing-test | bug | ✓ | ✓ | 20 | 8 | 9,995 | 3,128 | −68.7% |
+| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,301 | 2,367 | −74.6% |
+| tax-adapter | cross-layer | ✓ | ✓ | 12 | 5 | 3,674 | 1,847 | −49.7% |
+| schema-invoice | cross-layer | ✓ | ✓ | 16 | 4 | 7,672 | 1,405 | −81.7% |
+| repeat-loyalty-lookup | repeated | ✓ | ✓ | 18 | 6 | 8,376 | 2,143 | −74.4% |
+| webhook-renewal | cross-layer | ✓ | ✓ | 13 | 5 | 4,831 | 2,057 | −57.4% |
 | held-out-proration | repeated | ✓ | ✓ | 15 | 5 | 4,602 | 1,297 | −71.8% |
 | held-out-dunning | bug | ✓ | ✓ | 17 | 5 | 5,908 | 1,416 | −76.0% |
 
