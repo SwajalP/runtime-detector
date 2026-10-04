@@ -16,12 +16,17 @@ from ledger.context.budget import fit_budget
 from ledger.context.representations import cost, render, represent
 from ledger.events.schema import new_id, now_ms
 from ledger.policy.admission import expected_value, should_admit
-from ledger.policy.candidates import generate_candidates, neighbors
+from ledger.policy.candidates import generate_candidates
 from ledger.policy.invalidation import invalidate_path, is_region_fresh
 from ledger.policy.replacement import evict_to_budget, keep_score
 from ledger.policy.scorer import score_region
 
 REPO_TOOL_OPS = {"grep", "glob", "read", "definition", "references"}
+PREFETCH_SKIP_PREFIXES = ("tests/", "shop/catalog", "shop/legacy", "shop/promotions")
+
+
+def _skip_prefetch_path(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in PREFETCH_SKIP_PREFIXES)
 
 
 class ContextController:
@@ -378,75 +383,75 @@ class ContextController:
     # ------------------------------------------------------------- internals
 
     def _prefetch(self, session_id, entries, objective, turn, used, budget) -> list[dict]:
-        """Signature-prefetch resolved call-edge neighbours of admitted regions.
+        """Signature-prefetch unused call successors of HIGH-score admitted regions.
 
-        High-value neighbours are already in ``entries``. What remains are the
-        next hop on the call graph (callers/callees not admitted). Those have
-        low standalone ``p_used_soon``; we blend in the parent line's heat so
-        a neighbour of a p=0.96 region outranks a neighbour of a p=0.50 one.
-        Only function/method call edges qualify — class constructors and
-        co-access-only pairs are not "high-confidence" prefetch.
+        High-value neighbours are already in ``entries``. Prefetching every
+        leftover caller/callee of every admitted line burns tokens and is a
+        failed optimization. Only unused callees of exact-or-better, high-p
+        production parents qualify. Class constructors are real callees
+        (``for_renewal`` → ``Money``); test/confuser paths are not.
+        Standalone leftover ``p_used_soon`` is low; blend parent heat, but
+        do not floor a weak neighbour up to the threshold.
         """
         out: list[dict] = []
         seen = {e["region_id"] for e in entries}
-        # Signatures are cheap; reserve a slice so a full exact-code bundle
-        # cannot starve prefetch.
         reserved = min(240, max(80, budget // 10))
         remaining = max(reserved, max(0, budget - used))
+        min_score = float(self.cfg.prefetch_parent_min_score)
+        min_p = float(self.cfg.prefetch_parent_min_p)
+
+        parents = [
+            e
+            for e in entries
+            if float(e.get("score") or 0) >= min_score
+            and float(e.get("p_used_soon") or 0) >= min_p
+            and not (e.get("path") or "").startswith("tests/")
+        ]
 
         ranked: list[tuple] = []
-        for e in entries:
+        for e in parents:
             parent_p = float(e.get("p_used_soon") or 0)
-            for nid in neighbors(self.conn, e["region_id"]):
+            for row in self.conn.execute(
+                "SELECT callee_id FROM calls WHERE caller_id = ? AND callee_id IS NOT NULL",
+                (e["region_id"],),
+            ):
+                nid = row["callee_id"]
                 if nid in seen:
                     continue
-                row = self.conn.execute("SELECT * FROM source_regions WHERE region_id = ?", (nid,)).fetchone()
-                if not row:
+                src = self.conn.execute("SELECT * FROM source_regions WHERE region_id = ?", (nid,)).fetchone()
+                if not src:
                     continue
-                region = dict(row)
-                if (region.get("kind") or "") not in {"function", "method"}:
+                region = dict(src)
+                if (region.get("kind") or "") not in {"function", "method", "class"}:
                     continue
-                call = self.conn.execute(
-                    """
-                    SELECT 1 FROM calls
-                    WHERE (caller_id = ? AND callee_id = ?) OR (caller_id = ? AND callee_id = ?)
-                    """,
-                    (e["region_id"], nid, nid, e["region_id"]),
-                ).fetchone()
-                if not call:
+                if _skip_prefetch_path(region.get("path") or ""):
                     continue
                 region["candidate_sources"] = ["prefetch_edge"]
                 region["candidate_weight"] = 1.0
                 info = score_region(self.conn, self.cfg, session_id, region, objective, turn)
                 raw_p = float(info["p_used_soon"])
-                # Inherit heat from the admitted parent cache line.
-                blended = max(raw_p, 0.72 * parent_p + 0.20 * raw_p)
-                # Next hop of a parent that already cleared the prefetch bar
-                # inherits that bar — leftover neighbours score ~0.23 standalone.
-                if parent_p >= self.cfg.prefetch_threshold:
-                    blended = max(blended, self.cfg.prefetch_threshold)
-                blended = round(blended, 4)
+                blended = round(max(raw_p, 0.72 * parent_p + 0.20 * raw_p), 4)
+                if blended < self.cfg.prefetch_threshold:
+                    continue
                 info = dict(info)
                 info["p_used_soon"] = blended
                 ranked.append((blended, parent_p, nid, region, info, e))
 
-        def _sort_key(item):
-            blended, parent_p, nid, region, info, e = item
-            prod = 0 if (region.get("path") or "").startswith("shop/") else 1
-            return (prod, -blended, -parent_p)
+        ranked.sort(key=lambda item: (-item[0], -item[1]))
 
-        ranked.sort(key=_sort_key)
-
+        per_parent: dict[str, int] = {}
         for blended, parent_p, nid, region, info, e in ranked:
             if nid in seen:
                 continue
-            if info["p_used_soon"] < self.cfg.prefetch_threshold:
+            parent_id = e["region_id"]
+            if per_parent.get(parent_id, 0) >= 1:
                 continue
             sig = render(region, "signature")
             c = cost(sig)
             if c > remaining:
                 continue
             seen.add(nid)
+            per_parent[parent_id] = per_parent.get(parent_id, 0) + 1
             remaining -= c
             self._touch(session_id, nid, turn, structural=0.4)
             self.collector.record(
@@ -460,7 +465,7 @@ class ContextController:
                     "symbol": region.get("symbol"),
                     "start_line": region["start_line"],
                     "end_line": region["end_line"],
-                    "why": f"call-edge neighbour of {e['symbol']}",
+                    "why": f"unused call-edge successor of {e['symbol']}",
                     "score": info["score"],
                     "p_used_soon": info["p_used_soon"],
                     "signature": sig,

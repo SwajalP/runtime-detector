@@ -49,7 +49,7 @@ class LedgerConfig:
     ledger_dir: Path
     db_path: Path
     token_budget: int = 2400
-    prefetch_limit: int = 3
+    prefetch_limit: int = 2
     admission_threshold: float = 0.28
     decay_rho: float = 0.92
     top_neighbors: int = 8
@@ -59,9 +59,12 @@ class LedgerConfig:
     secret_globs: tuple[str, ...] = SECRET_GLOBS
     language: str = "python"
     parser_backend: str = "tree-sitter"  # or "ast"
-    # Standalone leftover neighbors score ~0.23; blended with parent heat they
-    # land ~0.45–0.75. 0.62 never fired because those neighbors were already admitted.
-    prefetch_threshold: float = 0.45
+    # Standalone leftover successors score ~0.23. Blend parent heat, but only
+    # unused callees of HIGH-score admitted regions (not every leftover edge).
+    prefetch_threshold: float = 0.62
+    # HIGH parent: above admission (0.28) and the exact-code cutoff (0.55).
+    prefetch_parent_min_score: float = 0.70
+    prefetch_parent_min_p: float = 0.90
     # Re-run `pytest` under coverage when the agent runs it via Bash so the
     # program trace can be joined with the agent trace. Cheap for small suites.
     trace_agent_tests: bool = True
@@ -101,17 +104,21 @@ class LedgerConfig:
                 import json
 
                 data = json.loads(saved.read_text())
-                for key in ("token_budget", "prefetch_limit", "admission_threshold", "prefetch_threshold", "trace_agent_tests"):
+                for key in (
+                    "token_budget",
+                    "prefetch_limit",
+                    "admission_threshold",
+                    "prefetch_threshold",
+                    "prefetch_parent_min_score",
+                    "prefetch_parent_min_p",
+                    "trace_agent_tests",
+                ):
                     if key in data and f"LEDGER_{key.upper()}" not in os.environ:
                         setattr(cfg, key, type(getattr(cfg, key))(data[key]))
                 if isinstance(data.get("weights"), dict):
                     cfg.weights.update({k: float(v) for k, v in data["weights"].items()})
             except Exception:
                 pass
-        # First shipped default (0.62) never fired: leftover call-edge
-        # neighbours score ~0.23 standalone. Treat it as unset.
-        if cfg.prefetch_threshold == 0.62:
-            cfg.prefetch_threshold = 0.45
         return cfg
 
     def to_json(self) -> dict:
@@ -120,6 +127,8 @@ class LedgerConfig:
             "token_budget": self.token_budget,
             "prefetch_limit": self.prefetch_limit,
             "prefetch_threshold": self.prefetch_threshold,
+            "prefetch_parent_min_score": self.prefetch_parent_min_score,
+            "prefetch_parent_min_p": self.prefetch_parent_min_p,
             "admission_threshold": self.admission_threshold,
             "trace_agent_tests": self.trace_agent_tests,
             "port": self.port,
