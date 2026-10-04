@@ -189,6 +189,15 @@ class LedgerRuntime:
                 last_eval = json.loads(p.read_text())
             except json.JSONDecodeError:
                 last_eval = None
+        current = next((s for s in sessions if s.get("session_id") == session_id), None)
+        replay = bool(
+            current
+            and (
+                current.get("agent") == "replay"
+                or str(current.get("label") or "").startswith("REPLAY")
+                or (bundle or {}).get("replay")
+            )
+        )
         return {
             "session_id": session_id,
             "sessions": sessions,
@@ -201,6 +210,8 @@ class LedgerRuntime:
             "repo": str(self.cfg.repo_root),
             "last_eval": last_eval,
             "config": self.cfg.to_json(),
+            "replay": replay,
+            "session_label": (current or {}).get("label"),
         }
 
 

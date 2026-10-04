@@ -258,12 +258,22 @@ def export(session_id: str, out: Path, repo: Optional[Path] = RepoOpt):
 
 
 @app.command()
-def replay(src: Path, speed: float = 2.0, repo: Optional[Path] = RepoOpt):
-    """Replay an exported session into a new, clearly-labelled REPLAY session."""
-    from ledger.replay import replay_session
+def replay(
+    src: Optional[Path] = typer.Argument(
+        None,
+        help="JSONL from `ledger export`. Omit to use fixtures/replay/renewal-discount.jsonl.",
+    ),
+    speed: float = typer.Option(0.0, help="Inter-event speed. 0 = as-fast-as-possible (venue default)."),
+    repo: Optional[Path] = RepoOpt,
+):
+    """Replay a recorded session into a new session labelled REPLAY (not a live model)."""
+    from ledger.replay import default_fixture, replay_session
 
-    sid = replay_session(_rt(repo), src, speed=speed)
-    console.print(f"replayed into session {sid} (labelled REPLAY)")
+    path = src or default_fixture()
+    if not path.exists():
+        raise typer.BadParameter(f"replay fixture not found: {path}")
+    sid = replay_session(_rt(repo), path, speed=speed)
+    console.print(f"replayed into session {sid} (labelled REPLAY — not a live model)")
 
 
 @app.command("delete-session")

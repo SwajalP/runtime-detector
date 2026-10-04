@@ -40,3 +40,4 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     fallback = (DASHBOARD_HTML).read_text(encoding="utf-8")
     assert "Code knowledge graph" in fallback
     assert "Memory hierarchy" in fallback
+    assert "replay-banner" in fallback

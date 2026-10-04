@@ -13,8 +13,15 @@ runner = CliRunner()
 def test_cli_help_lists_required_commands():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for name in ("eval", "mcp", "hook", "agentverse", "serve", "context"):
+    for name in ("eval", "mcp", "hook", "agentverse", "serve", "context", "replay"):
         assert name in result.stdout
+
+
+def test_replay_help_says_not_live():
+    result = runner.invoke(app, ["replay", "--help"])
+    assert result.exit_code == 0
+    assert "REPLAY" in result.stdout
+    assert "fixture" in result.stdout.lower()
 
 
 def test_eval_help_mentions_repo():

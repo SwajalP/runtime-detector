@@ -62,6 +62,7 @@ export default function App() {
         <div>
           <strong>LEDGER RUNTIME</strong>
           <span> context memory hierarchy · dual-trace controller</span>
+          {state.replay ? <span> · REPLAY — recorded events, not a live model</span> : null}
         </div>
         <div className="toolbar">
           <button onClick={() => run("ledger")}>Run LEDGER</button>

@@ -77,6 +77,7 @@
     <div>
       <strong>LEDGER RUNTIME</strong>
       <span> context memory hierarchy · dual-trace controller</span>
+      <span id="replay-banner" class="muted" hidden></span>
     </div>
     <div class="toolbar">
       <button onclick="run('renewal-discount','ledger')">Run LEDGER</button>
@@ -135,6 +136,11 @@
     }
 
     function renderState(state) {
+      const banner = $("replay-banner");
+      if (banner) {
+        banner.hidden = !state.replay;
+        banner.textContent = state.replay ? " · REPLAY — recorded events, not a live model" : "";
+      }
       const m = state.metrics || {};
       const cells = [
         ["session", (state.session_id || "—").slice(0, 16)],
