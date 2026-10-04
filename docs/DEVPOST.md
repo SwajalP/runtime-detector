@@ -40,4 +40,4 @@ Do not invent metrics.
 
 ## Tracks
 
-See `docs/TRACKS.md` (Grand Prize, Actually Intelligent, Fetch.ai ASI:One).
+See `docs/TRACKS.md` (50/150-word blurbs, Grand Prize, Actually Intelligent, Fetch.ai ASI:One) and `docs/DEMO.md` (three-minute script).

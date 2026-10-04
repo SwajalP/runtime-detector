@@ -86,12 +86,14 @@ The agent keeps Grep, Read, Bash, and Edit. LEDGER annotates repeated broad sear
 
 Task success is reported before efficiency. Primary cost metrics: repository tool calls, repository tokens returned, time to first target region, cache hit/miss, prefetch, eviction, and invalidation (stale-serve target is zero).
 
+Judge copy: 50- and 150-word blurbs in `docs/TRACKS.md`. Three-minute script: `docs/DEMO.md`. Venue Wi-Fi failure: `./scripts/reset_demo.sh --replay` (labelled REPLAY, not live Claude).
+
 ## Layout
 
 ```
 ledger/           controller, index, traces, MCP, Claude hooks, Agentverse, eval
 dashboard/        React + Vite UI (optional; serve prefers dist/ if built, else dashboard.html)
 demo_repo/        layered billing shop with a deterministic renewal-discount bug
-docs/             architecture, Agentverse, prize tracks
-scripts/          reset + baseline/LEDGER runners
+docs/             architecture, Agentverse, prize tracks, 3-minute demo
+scripts/          reset + baseline/LEDGER runners + offline replay
 ```
