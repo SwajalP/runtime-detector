@@ -53,6 +53,21 @@ def index(repo: Optional[Path] = RepoOpt, full: bool = typer.Option(False, help=
     backend = "tree-sitter" if TREE_SITTER_AVAILABLE and rt.cfg.parser_backend != "ast" else "ast"
     console.print(stats)
     console.print(format_card_line(cards, backend=backend))
+    from traceweaver.index.embeddings import embed_regions
+
+    console.print_json(data=embed_regions(rt.cfg, rt.conn))
+
+
+@app.command()
+def embed(repo: Optional[Path] = RepoOpt):
+    """Build the local vector index over source-region signature cards."""
+    from traceweaver.index.embeddings import embed_regions
+
+    rt = _rt(repo)
+    n = rt.conn.execute("SELECT COUNT(*) c FROM source_regions").fetchone()["c"]
+    if n == 0:
+        rt.sync()
+    console.print_json(data=embed_regions(rt.cfg, rt.conn))
 
 
 @app.command()

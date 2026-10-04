@@ -104,17 +104,39 @@ def score_region(
         "token_cost": w["token_cost"] * C,
         "staleness": w["staleness"] * F,
     }
+    # Extra signal only when a vector index already exists. An empty index
+    # leaves the weights above unchanged. Published 12-task numbers were
+    # measured before this cosine term.
+    sem, sem_note = _semantic(conn, cfg, region, objective)
+    if sem is not None:
+        parts["semantic"] = w.get("semantic", 0.16) * sem
     score = sum(parts.values())
     return {
         "score": round(score, 4),
         "parts": {k: round(v, 4) for k, v in parts.items()},
-        "features": {"L": round(L, 3), "X": round(X, 3), "G": round(G, 3), "H": round(H, 3), "R": round(R, 3), "D": round(D, 3), "C": round(C, 3), "F": round(F, 3)},
-        "why": _why(sources, X, D, F, L, H, R, float(ws.get("agent_access_score") or 0), float(ws.get("edit_likelihood") or 0)),
+        "features": {"L": round(L, 3), "X": round(X, 3), "G": round(G, 3), "H": round(H, 3), "R": round(R, 3), "D": round(D, 3), "C": round(C, 3), "F": round(F, 3), "Sem": round(sem, 3) if sem is not None else 0.0},
+        "why": _why(sources, X, D, F, L, H, R, float(ws.get("agent_access_score") or 0), float(ws.get("edit_likelihood") or 0), sem_note),
         "p_used_soon": round(1 / (1 + math.exp(-6.0 * (score - 0.30))), 4),
     }
 
 
-def _why(sources: list[str], X: float, D: float, F: float, L: float, H: float, R: float, agent_access: float, edit_likelihood: float) -> str:
+def _semantic(conn, cfg, region: dict, objective: str) -> tuple[float | None, str]:
+    try:
+        from traceweaver.index.embeddings import open_index
+
+        idx = open_index(cfg, conn)
+        if idx.count() == 0:
+            return None, ""
+        cos = idx.cosine_for(region.get("region_id") or "", objective or "")
+        if cos is None:
+            return None, ""
+        cos = _clip(cos)
+        return cos, f"semantic neighbor (cosine {cos:.2f}, {idx.backend})"
+    except Exception:
+        return None, ""
+
+
+def _why(sources: list[str], X: float, D: float, F: float, L: float, H: float, R: float, agent_access: float, edit_likelihood: float, semantic_note: str = "") -> str:
     bits = []
     if X >= 0.9:
         bits.append("executed only by the failing test")
@@ -144,6 +166,8 @@ def _why(sources: list[str], X: float, D: float, F: float, L: float, H: float, R
         bits.append("prefetched call edge")
     if F > 0.5:
         bits.append("STALE — content hash mismatch")
+    if semantic_note:
+        bits.append(semantic_note)
     if not bits:
         bits.append("weak union candidate")
     return "; ".join(bits)

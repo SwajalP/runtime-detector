@@ -200,6 +200,13 @@ class TraceWeaverRuntime:
         )
         from traceweaver.lake.pipeline import lake_summary
 
+        try:
+            from traceweaver.index.embeddings import vector_status
+
+            vectors = vector_status(self.cfg, self.conn)
+        except Exception:
+            vectors = {"backend": "sqlite-cosine", "count": 0, "dimension": 256, "model": "local-hash", "collection": "source_regions"}
+
         return {
             "session_id": session_id,
             "sessions": sessions,
@@ -215,6 +222,7 @@ class TraceWeaverRuntime:
             "replay": replay,
             "session_label": (current or {}).get("label"),
             "lake": lake_summary(self.cfg),
+            "vectors": vectors,
         }
 
 
