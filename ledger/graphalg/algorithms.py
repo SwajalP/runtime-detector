@@ -48,11 +48,7 @@ def tarjan_scc(graph: dict[str, list[str]]) -> list[list[str]]:
     return sccs
 
 
-def reverse_bfs(graph: dict[str, list[str]], start: str) -> list[str]:
-    """BFS on reversed edges. Dequeue order, ``start`` first.
-
-    Successors are expanded in sorted order so the visit order is stable.
-    """
+def _incoming(graph: dict[str, list[str]], start: str) -> dict[str, list[str]]:
     incoming: dict[str, list[str]] = {n: [] for n in graph}
     incoming.setdefault(start, [])
     for u, vs in graph.items():
@@ -62,7 +58,15 @@ def reverse_bfs(graph: dict[str, list[str]], start: str) -> list[str]:
             incoming[v].append(u)
     for u in incoming:
         incoming[u] = sorted(set(incoming[u]))
+    return incoming
 
+
+def reverse_bfs(graph: dict[str, list[str]], start: str) -> list[str]:
+    """BFS on reversed edges. Dequeue order, ``start`` first.
+
+    Successors are expanded in sorted order so the visit order is stable.
+    """
+    incoming = _incoming(graph, start)
     order: list[str] = []
     seen = {start}
     q: deque[str] = deque([start])
@@ -74,6 +78,50 @@ def reverse_bfs(graph: dict[str, list[str]], start: str) -> list[str]:
                 seen.add(v)
                 q.append(v)
     return order
+
+
+def reverse_bfs_depths(graph: dict[str, list[str]], start: str) -> list[tuple[str, int]]:
+    """Same visit order as ``reverse_bfs``, with the depth of each node."""
+    incoming = _incoming(graph, start)
+    order: list[tuple[str, int]] = []
+    dist = {start: 0}
+    q: deque[str] = deque([start])
+    while q:
+        u = q.popleft()
+        order.append((u, dist[u]))
+        for v in incoming.get(u, []):
+            if v not in dist:
+                dist[v] = dist[u] + 1
+                q.append(v)
+    return order
+
+
+def shortest_reverse_path(graph: dict[str, list[str]], start: str, goal: str) -> list[str] | None:
+    """Shortest path from ``start`` along reversed edges, inclusive.
+
+    ``None`` when ``goal`` is not reachable. ``start`` to itself is ``[start]``.
+    """
+    if start == goal:
+        return [start]
+    incoming = _incoming(graph, start)
+    parent: dict[str, str | None] = {start: None}
+    q: deque[str] = deque([start])
+    while q:
+        u = q.popleft()
+        for v in incoming.get(u, []):
+            if v in parent:
+                continue
+            parent[v] = u
+            if v == goal:
+                path = [goal]
+                cur: str | None = u
+                while cur is not None:
+                    path.append(cur)
+                    cur = parent[cur]
+                path.reverse()
+                return path
+            q.append(v)
+    return None
 
 
 def stoer_wagner(adj: dict[str, dict[str, float]]) -> dict:

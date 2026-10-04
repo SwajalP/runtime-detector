@@ -65,6 +65,11 @@
     .hier-col li { margin: 6px 0; display: flex; flex-direction: column; gap: 2px; }
     .occ { height: 6px; background: #1b2431; border-radius: 99px; margin: 8px 0; }
     .occ-bar { height: 100%; background: linear-gradient(90deg, #3ee0b0, #7aa2ff); border-radius: 99px; }
+    .audit-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .audit-col { background: #0b1018; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .audit-col h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .audit-col ul, .audit-col ol { margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
+    .audit-col li { margin: 4px 0; }
     @media (max-width: 1100px) {
       .grid { grid-template-columns: 1fr; }
       .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -123,6 +128,7 @@
     <div class="card wide">
       <h2>Structural audit · SCC / min-cut / clones</h2>
       <p class="muted" id="audit-note"></p>
+      <div id="audit-summary"></div>
       <pre id="audit"></pre>
     </div>
     <div class="card wide">
@@ -268,16 +274,45 @@
     function renderAudit(audit) {
       const note = $("audit-note");
       const pre = $("audit");
+      const summary = $("audit-summary");
       if (!note || !pre) return;
       if (!audit) {
         note.textContent = "audit unavailable";
         pre.textContent = "";
+        if (summary) summary.innerHTML = "";
         return;
       }
-      if (audit.fixture) {
-        note.textContent = audit.label || "fixture JSON — not a live measurement";
-      } else {
-        note.textContent = audit.disclaimer || "structural audit computed from the index";
+      const cut = audit.min_cut || null;
+      const bfs = audit.reverse_bfs || null;
+      const live = !audit.fixture && (cut || bfs || (audit.large_sccs || []).length);
+      if (!live) {
+        note.textContent = audit.label || audit.disclaimer || "fixture JSON — not a live measurement";
+        if (summary) summary.innerHTML = "";
+        pre.textContent = JSON.stringify(audit, null, 2);
+        return;
+      }
+      note.textContent = audit.disclaimer || "structural audit computed from the index";
+      const sccs = audit.large_sccs || [];
+      const sccHtml = sccs.length
+        ? sccs.map((s) => `<li>size ${esc(s.size)}: ${(s.regions || []).map(esc).join("; ")}</li>`).join("")
+        : `<li>largest SCC size ${esc(audit.largest_scc_size)} (no component of size ≥ 2)</li>`;
+      const seedSide = ((cut && cut.seed_side) || []).map((s) => `<li>${esc(s)}</li>`).join("") || "<li>—</li>";
+      const otherSide = ((cut && cut.other_side) || []).map((s) => `<li>${esc(s)}</li>`).join("") || "<li>—</li>";
+      const depths = ((bfs && bfs.depths) || []).map((d) => `<li>depth ${esc(d.depth)}: ${esc(d.region)}</li>`).join("") || "<li>—</li>";
+      if (summary) {
+        summary.innerHTML = `<div class="audit-grid">
+          <div class="audit-col"><h3>Tarjan SCC</h3>
+            <p class="muted">largest ${esc(audit.largest_scc_size)} · ${esc(audit.directed_edges)} edges</p>
+            <ul>${sccHtml}</ul></div>
+          <div class="audit-col"><h3>Stoer–Wagner partition</h3>
+            <p class="muted">weight ${esc(cut && cut.weight)} · seed side stays with ${esc(cut && cut.around)}</p>
+            <p>${esc(cut && cut.note)}</p>
+            <p>Seed side</p><ul>${seedSide}</ul>
+            <p>Other side</p><ul>${otherSide}</ul></div>
+          <div class="audit-col"><h3>Reverse BFS depths</h3>
+            <p class="muted">depth ${esc(bfs && bfs.depth)} from ${esc(bfs && bfs.failing_test)} to ${esc(bfs && bfs.seed)}</p>
+            <ol>${depths}</ol></div>
+        </div>`;
       }
       pre.textContent = JSON.stringify(audit, null, 2);
     }

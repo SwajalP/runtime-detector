@@ -15,15 +15,22 @@ import re
 from ledger.config import LedgerConfig
 from ledger.fixtures import load_fixture
 from ledger.graphalg.algorithms import stoer_wagner, tarjan_scc
-from ledger.graphalg.apply import call_graph, resolve_region, symbol_neighborhood, undirected_component
+from ledger.graphalg.apply import (
+    FAILING_PATH,
+    FAILING_SYMBOL,
+    _cut_note,
+    call_graph,
+    reach_from_seed,
+    resolve_region,
+    symbol_neighborhood,
+    undirected_component,
+)
 from ledger.runtime import LedgerRuntime
 
 _COMMENT = re.compile(r"#.*")
 _SPACE = re.compile(r"\s+")
 _TRAP_PREFIXES = ("shop/legacy/", "shop/promotions/", "shop/catalog/", "shop/notifications/")
 _TRAP_TOKENS = ("renewal", "discount", "loyalty")
-FAILING_SYMBOL = "for_renewal"
-FAILING_PATH = "shop/billing/discount_policy.py"
 
 
 def _norm_body(body: str) -> str:
@@ -76,14 +83,16 @@ def _min_cut_around_failing(conn, graph: dict[str, list[str]]) -> dict:
     left, right = set(cut["left"]), set(cut["right"])
     if seed in right and seed not in left:
         left, right = right, left
+    seed_side = _labels(conn, sorted(left))
+    other_side = _labels(conn, sorted(right))
     return {
         "algorithm": "stoer-wagner",
         "around": f"{row['path']}::{row['symbol']}",
         "weight": cut.get("weight"),
         "nodes": len(adj),
-        "seed_side": _labels(conn, sorted(left)),
-        "other_side": _labels(conn, sorted(right)),
-        "note": "Global min-cut of the undirected caller/callee neighborhood of the renewal failing path.",
+        "seed_side": seed_side,
+        "other_side": other_side,
+        "note": _cut_note(cut.get("weight"), seed_side, other_side),
     }
 
 
@@ -157,6 +166,16 @@ def build_audit(cfg: LedgerConfig) -> dict:
     sccs = tarjan_scc(graph)
     comparison = load_fixture("audit_comparison.json")
     comparison["fixture"] = True
+    seed = resolve_region(rt.conn, FAILING_SYMBOL, path_substr=FAILING_PATH)
+    reverse = reach_from_seed(rt.conn, graph, seed["region_id"]) if seed is not None else {
+        "reaches_failing_test": False,
+        "depth": None,
+        "path": [],
+        "depths": [],
+        "failing_test": None,
+    }
+    resolved = rt.conn.execute("SELECT COUNT(*) c FROM calls WHERE callee_id IS NOT NULL").fetchone()["c"]
+    unresolved = rt.conn.execute("SELECT COUNT(*) c FROM calls WHERE callee_id IS NULL").fetchone()["c"]
     return {
         "kind": "structural",
         "fixture": False,
@@ -167,6 +186,17 @@ def build_audit(cfg: LedgerConfig) -> dict:
         ),
         "repo": str(cfg.repo_root),
         "regions": len(graph),
+        "directed_edges": sum(len(v) for v in graph.values()),
+        "resolved_calls": resolved,
+        "unresolved_calls": unresolved,
+        "reverse_bfs": {
+            "seed": f"{FAILING_PATH}::{FAILING_SYMBOL}",
+            "failing_test": reverse.get("failing_test"),
+            "reaches_failing_test": reverse.get("reaches_failing_test"),
+            "depth": reverse.get("depth"),
+            "path": reverse.get("path") or [],
+            "depths": reverse.get("depths") or [],
+        },
         "largest_scc_size": max((len(comp) for comp in sccs), default=0),
         "large_sccs": _large_sccs(rt.conn, graph),
         "min_cut": _min_cut_around_failing(rt.conn, graph),
@@ -205,6 +235,7 @@ def load_audit_for_dashboard(cfg: LedgerConfig) -> dict:
         "fixture_comparison": fixture,
         "large_sccs": [],
         "min_cut": None,
+        "reverse_bfs": None,
         "clone_clusters": [],
         "lexical_traps": [],
     }

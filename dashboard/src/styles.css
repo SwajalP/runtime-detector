@@ -83,3 +83,8 @@ pre { white-space: pre-wrap; font-size: 12px; color: #c9d4e5; }
 .occ { height: 6px; background: #1b2431; border-radius: 99px; margin: 8px 0; }
 .occ-bar { height: 100%; background: linear-gradient(90deg, #3ee0b0, #7aa2ff); border-radius: 99px; }
 .hier-log { margin-top: 12px; max-height: 220px; overflow: auto; }
+.audit-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 10px; margin-bottom: 10px; }
+.audit-col { background: #0b1018; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.audit-col h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.audit-col ul, .audit-col ol { margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
+.audit-col li { margin: 4px 0; }

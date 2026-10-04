@@ -14,6 +14,7 @@ from ledger.config import LedgerConfig
 from ledger.events.schema import content_hash, now_ms
 from ledger.index.lexical import delete_fts_for_path, rebuild_fts
 from ledger.index.parser import TREE_SITTER_AVAILABLE, parse_file
+from ledger.index.resolve import resolve_callees
 from ledger.index.symbols import upsert_regions
 
 
@@ -123,26 +124,5 @@ def reindex_paths(conn, cfg: LedgerConfig, rel_paths: list[str]) -> dict:
 
 
 def _resolve_callees(conn) -> None:
-    """Heuristic static resolution: callee_name -> region symbol.
-
-    Prefers exact qualified matches, then ``Class.method`` suffix matches, then
-    bare function names. Ambiguous bare names resolve to the first match; the
-    runtime trace corrects this when a test actually executes.
-    """
-    rows = conn.execute("SELECT caller_id, callee_name FROM calls WHERE callee_id IS NULL").fetchall()
-    for caller_id, callee_name in rows:
-        short = callee_name.split(".")[-1]
-        match = conn.execute(
-            """
-            SELECT region_id FROM source_regions
-            WHERE kind != 'module' AND (symbol = ? OR symbol LIKE ? OR symbol = ?)
-            ORDER BY symbol = ? DESC, symbol LIKE ? DESC, kind = 'class'
-            LIMIT 1
-            """,
-            (callee_name, f"%.{short}", short, callee_name, f"%.{short}"),
-        ).fetchone()
-        if match:
-            conn.execute(
-                "UPDATE calls SET callee_id = ? WHERE caller_id = ? AND callee_name = ?",
-                (match["region_id"], caller_id, callee_name),
-            )
+    """Bind callee names using imports, ``self.attr`` types, and same-file defs."""
+    resolve_callees(conn)

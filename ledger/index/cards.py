@@ -49,7 +49,7 @@ def measure_cards(conn: sqlite3.Connection) -> dict:
     n = 0
     for row in conn.execute(
         """
-        SELECT region_id, path, symbol, kind, signature, body
+        SELECT region_id, path, symbol, kind, signature, body, token_count
         FROM source_regions
         WHERE kind != 'module'
         """
@@ -59,7 +59,9 @@ def measure_cards(conn: sqlite3.Connection) -> dict:
         card = signature_card(region, callees.get(region["region_id"], []))
         full_body_bytes += len(body.encode("utf-8"))
         card_bytes += len(card.encode("utf-8"))
-        full_body_tokens += estimate_tokens(body)
+        # Stored at index time by estimate_tokens(body). Use that column so the
+        # card report cannot drift from the index.
+        full_body_tokens += int(region.get("token_count") or 0)
         card_tokens += estimate_tokens(card)
         n += 1
     return {

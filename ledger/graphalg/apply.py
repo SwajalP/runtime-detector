@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import sqlite3
 
-from ledger.graphalg.algorithms import reverse_bfs, stoer_wagner, tarjan_scc
+from ledger.graphalg.algorithms import reverse_bfs, reverse_bfs_depths, shortest_reverse_path, stoer_wagner, tarjan_scc
 
 ALGORITHMS = ("reverse_bfs", "min_cut", "tarjan")
+FAILING_SYMBOL = "for_renewal"
+FAILING_PATH = "shop/billing/discount_policy.py"
+FAILING_TEST_SYMBOL = "test_renewal_applies_loyalty_on_annual_boundary"
+FAILING_TEST_PATH = "tests/test_renewal_discount.py"
 
 
 def call_graph(conn: sqlite3.Connection) -> dict[str, list[str]]:
@@ -97,6 +101,30 @@ def undirected_component(
     return {n: {v: w for v, w in adj.get(n, {}).items() if v in seen} for n in seen}
 
 
+def reach_from_seed(conn: sqlite3.Connection, graph: dict[str, list[str]], seed_id: str) -> dict:
+    """Reverse-BFS depths from ``seed_id``, including the failing renewal test."""
+    depths = reverse_bfs_depths(graph, seed_id)
+    labeled = []
+    for rid, depth in depths[:80]:
+        labels = _labels(conn, [rid], limit=1)
+        labeled.append({"region_id": rid, "depth": depth, "region": labels[0] if labels else rid})
+    test = resolve_region(conn, FAILING_TEST_SYMBOL, path_substr=FAILING_TEST_PATH)
+    path_ids = None
+    if test is not None:
+        path_ids = shortest_reverse_path(graph, seed_id, test["region_id"])
+    path = _labels(conn, path_ids, limit=len(path_ids)) if path_ids else []
+    return {
+        "order": [rid for rid, _depth in depths[:80]],
+        "depths": labeled,
+        "neighborhood": [rid for rid, _depth in depths if rid != seed_id][:80],
+        "labels": _labels(conn, [rid for rid, _depth in depths if rid != seed_id]),
+        "failing_test": f"{test['path']}::{test['symbol']}" if test is not None else None,
+        "reaches_failing_test": bool(path_ids),
+        "depth": (len(path_ids) - 1) if path_ids else None,
+        "path": path,
+    }
+
+
 def symbol_neighborhood(
     conn: sqlite3.Connection,
     symbol: str,
@@ -160,23 +188,21 @@ def annotate_entries(
     report["seed_symbol"] = seed_row["symbol"]
     report["seed_path"] = seed_row["path"]
 
-    order = reverse_bfs(graph, seed_id)
-    neighborhood = [n for n in order if n != seed_id]
-    report["reverse_bfs"] = {
-        "order": order[:80],
-        "neighborhood": neighborhood[:80],
-        "labels": _labels(conn, neighborhood),
-    }
+    reached = reach_from_seed(conn, graph, seed_id)
+    order = reached["order"]
+    report["reverse_bfs"] = reached
 
     sccs = tarjan_scc(graph)
     seed_scc = next((comp for comp in sccs if seed_id in comp), [seed_id])
     large = [comp for comp in sccs if len(comp) >= 2]
+    largest = max(large, key=len) if large else []
     report["tarjan"] = {
         "seed_scc": seed_scc[:80],
         "seed_scc_size": len(seed_scc),
         "seed_scc_labels": _labels(conn, seed_scc),
         "large_scc_count": len(large),
         "largest_scc_size": max((len(comp) for comp in sccs), default=0),
+        "largest_scc_labels": _labels(conn, sorted(largest)),
     }
 
     neigh_ids = set(order)
@@ -188,17 +214,27 @@ def annotate_entries(
         left, right = right, left
     elif seed_id not in left:
         left.add(seed_id)
+    seed_labels = _labels(conn, sorted(left))
+    other_labels = _labels(conn, sorted(right))
     report["min_cut"] = {
         "algorithm": "stoer-wagner",
         "weight": cut.get("weight"),
         "seed_side": sorted(left)[:80],
         "other_side": sorted(right)[:80],
-        "seed_side_labels": _labels(conn, sorted(left)),
-        "other_side_labels": _labels(conn, sorted(right)),
+        "seed_side_labels": seed_labels,
+        "other_side_labels": other_labels,
+        "note": _cut_note(cut.get("weight"), seed_labels, other_labels),
     }
 
     bfs_set = set(order)
     scc_set = set(seed_scc)
+    depth = reached.get("depth")
+    cite = (
+        f"graph: reverse_bfs depth {depth} from {reached.get('failing_test')} to {seed_row['symbol']}; "
+        f"Tarjan largest SCC size {report['tarjan']['largest_scc_size']}"
+        f" ({', '.join(report['tarjan']['largest_scc_labels'][:6])}); "
+        f"Stoer–Wagner seed_side partition ({len(seed_labels)} regions stay with the seed)"
+    )
     for entry in entries:
         rid = entry.get("region_id")
         tags: list[str] = []
@@ -215,8 +251,23 @@ def annotate_entries(
                 if tag not in sources:
                     sources.append(tag)
             entry["sources"] = sources
-            suffix = "graph: " + ", ".join(tags)
             why = entry.get("why") or ""
-            if suffix not in why:
-                entry["why"] = f"{why}; {suffix}" if why else suffix
+            if "reverse_bfs depth" not in why:
+                entry["why"] = f"{why}; {cite}" if why else cite
     return report
+
+
+def _cut_note(weight, seed_side: list[str], other_side: list[str]) -> str:
+    other = ", ".join(other_side[:8]) or "(empty)"
+    note = (
+        "Stoer–Wagner global min-cut of the undirected caller/callee neighborhood "
+        "of shop/billing/discount_policy.py::for_renewal. "
+        "The seed-side partition is the set of regions that stay with for_renewal; "
+        f"other_side is the complement ({other})."
+    )
+    if weight == 1 or weight == 1.0:
+        note += (
+            " Weight 1.0 is the true minimum of this neighborhood: a bridge, "
+            "not a denser boundary. The partition is the result."
+        )
+    return note

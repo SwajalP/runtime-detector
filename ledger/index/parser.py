@@ -135,8 +135,16 @@ def _ts_call_name(node, src: bytes) -> str | None:
             cur = cur.child_by_field_name("object")
         if cur is not None and cur.type == "identifier":
             parts.append(_ts_text(cur, src))
-        parts.reverse()
-        return ".".join(parts) if parts else None
+            parts.reverse()
+            return ".".join(parts) if parts else None
+        # Obj().method() — the receiver is a call, not a name.
+        if cur is not None and cur.type == "call":
+            inner = cur.child_by_field_name("function")
+            if inner is not None and inner.type == "identifier":
+                parts.append(_ts_text(inner, src))
+                parts.reverse()
+                return ".".join(parts) if parts else None
+        return None
     return None
 
 
@@ -245,8 +253,13 @@ def _ast_call_name(node: ast.Call) -> str | None:
             cur = cur.value
         if isinstance(cur, ast.Name):
             parts.append(cur.id)
-        parts.reverse()
-        return ".".join(parts)
+            parts.reverse()
+            return ".".join(parts) if parts else None
+        if isinstance(cur, ast.Call) and isinstance(cur.func, ast.Name):
+            parts.append(cur.func.id)
+            parts.reverse()
+            return ".".join(parts) if parts else None
+        return None
     return None
 
 

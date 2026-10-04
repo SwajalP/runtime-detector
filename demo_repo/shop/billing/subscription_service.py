@@ -17,7 +17,7 @@ class SubscriptionService:
         tax = self.tax.for_amount(subtotal)
         return subtotal + tax
 
-    def renew(self, subscription: Subscription, loyalty: Loyalty) -> Invoice:
+    def renew(self, subscription: Subscription, loyalty: Loyalty, *, attempt: int = 0) -> Invoice:
         total = self.calculate_total(subscription, loyalty)
         invoice = Invoice(
             subscription_id=subscription.id,
@@ -25,4 +25,9 @@ class SubscriptionService:
             discount_cents=for_renewal(subscription, loyalty).cents,
             kind="renewal",
         )
-        return self.invoices.save(invoice)
+        saved = self.invoices.save(invoice)
+        if subscription.last_charge_failed and attempt < 1:
+            from shop.billing.dunning import schedule_retry
+
+            schedule_retry(subscription, loyalty, attempt)
+        return saved

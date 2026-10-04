@@ -8,5 +8,5 @@ class RenewalController:
     def __init__(self, service: SubscriptionService | None = None):
         self.service = service or SubscriptionService()
 
-    def renew(self, subscription: Subscription, loyalty: Loyalty):
-        return self.service.renew(subscription, loyalty)
+    def renew(self, subscription: Subscription, loyalty: Loyalty, *, attempt: int = 0):
+        return self.service.renew(subscription, loyalty, attempt=attempt)

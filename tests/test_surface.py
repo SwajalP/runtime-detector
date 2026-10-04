@@ -12,10 +12,14 @@ runner = CliRunner()
 
 def test_index_prints_measured_card_bytes(demo_rt):
     cards = measure_cards(demo_rt.conn)
+    stored = demo_rt.conn.execute(
+        "SELECT COALESCE(SUM(token_count), 0) t FROM source_regions WHERE kind != 'module'"
+    ).fetchone()["t"]
     assert cards["regions"] > 0
     assert cards["full_body_bytes"] > 0
     assert cards["card_bytes"] > 0
     assert cards["full_body_bytes"] > cards["card_bytes"]
+    assert cards["full_body_tokens"] == stored
     assert cards["full_body_tokens"] > cards["card_tokens"]
     result = runner.invoke(app, ["index", "--repo", str(demo_rt.cfg.repo_root)])
     assert result.exit_code == 0, result.stdout
@@ -105,6 +109,18 @@ def test_audit_writes_structural_json(demo_rt):
     assert data["min_cut"]["around"].endswith("discount_policy.py::for_renewal")
     assert data["min_cut"]["weight"] is not None
     assert data["min_cut"]["weight"] >= 1
+    assert data["min_cut"]["seed_side"]
+    assert any(item.endswith("::for_renewal") for item in data["min_cut"]["seed_side"])
+    assert "seed-side partition" in data["min_cut"]["note"]
+    bfs = data["reverse_bfs"]
+    assert bfs["reaches_failing_test"] is True
+    assert bfs["depth"] is not None and bfs["depth"] >= 2
+    assert bfs["path"][0].endswith("::for_renewal")
+    assert bfs["path"][-1].endswith("::test_renewal_applies_loyalty_on_annual_boundary")
+    assert data["largest_scc_size"] >= 2
+    assert data["large_sccs"]
+    assert data["large_sccs"][0]["size"] >= 2
+    assert data["directed_edges"] >= 8
     assert any(item["path"].startswith("shop/legacy/") or item["path"].startswith("shop/promotions/") for item in data["lexical_traps"])
     low = data["disclaimer"].lower()
     assert "sonarqube" in low

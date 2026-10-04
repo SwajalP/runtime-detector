@@ -2,6 +2,57 @@ import React, { useEffect, useState } from "react";
 import CodeGraph from "./components/CodeGraph.jsx";
 import MemoryHierarchy from "./components/MemoryHierarchy.jsx";
 
+function AuditPanel({ audit }) {
+  if (!audit) return <p className="muted">audit unavailable</p>;
+  const cut = audit.min_cut;
+  const bfs = audit.reverse_bfs;
+  const sccs = audit.large_sccs || [];
+  const live = !audit.fixture && (cut || bfs || sccs.length);
+  if (!live) {
+    return (
+      <>
+        <p className="muted">{audit.label || audit.disclaimer || "fixture JSON — not a live measurement"}</p>
+        <pre>{JSON.stringify(audit, null, 2)}</pre>
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="muted">{audit.disclaimer || "structural audit computed from the index"}</p>
+      <div className="audit-grid">
+        <div className="audit-col">
+          <h3>Tarjan SCC</h3>
+          <p className="muted">largest {audit.largest_scc_size} · {audit.directed_edges} edges</p>
+          <ul>
+            {sccs.length ? sccs.map((s) => (
+              <li key={s.size + (s.regions || []).join()}>size {s.size}: {(s.regions || []).join("; ")}</li>
+            )) : <li>largest SCC size {audit.largest_scc_size}</li>}
+          </ul>
+        </div>
+        <div className="audit-col">
+          <h3>Stoer–Wagner partition</h3>
+          <p className="muted">weight {cut?.weight} · seed side stays with {cut?.around}</p>
+          <p>{cut?.note}</p>
+          <p>Seed side</p>
+          <ul>{(cut?.seed_side || []).map((s) => <li key={s}>{s}</li>)}</ul>
+          <p>Other side</p>
+          <ul>{(cut?.other_side || []).map((s) => <li key={s}>{s}</li>)}</ul>
+        </div>
+        <div className="audit-col">
+          <h3>Reverse BFS depths</h3>
+          <p className="muted">depth {bfs?.depth} from {bfs?.failing_test} to {bfs?.seed}</p>
+          <ol>
+            {(bfs?.depths || []).map((d) => (
+              <li key={d.region_id || d.region}>depth {d.depth}: {d.region}</li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      <pre>{JSON.stringify(audit, null, 2)}</pre>
+    </>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState({ events: [], working_set: [], metrics: {}, heat: {}, execution_path: [] });
   const [graph, setGraph] = useState({ nodes: [], edges: [] });
@@ -155,12 +206,7 @@ export default function App() {
         </div>
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Structural audit · SCC / min-cut / clones</h2>
-          <p className="muted">
-            {audit?.fixture
-              ? audit.label || "fixture JSON — not a live measurement"
-              : audit?.disclaimer || "structural audit computed from the index"}
-          </p>
-          <pre>{audit ? JSON.stringify(audit, null, 2) : ""}</pre>
+          <AuditPanel audit={audit} />
         </div>
         <div className="card compare">
           <h2>Last A/B</h2>

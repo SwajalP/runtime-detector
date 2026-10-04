@@ -263,14 +263,23 @@ class ContextController:
         lines = [f"Bundle {bundle_id} · objective: {payload['objective']} · {payload['token_count']}/{payload['budget']} tokens"]
         graph = payload.get("graph") or {}
         if graph.get("algorithms"):
-            lines.append("graph algorithms: " + ", ".join(graph["algorithms"]))
+            lines.append(
+                "graph algorithms: reverse BFS (reverse_bfs), "
+                "Stoer–Wagner min-cut (min_cut), Tarjan SCC (tarjan)"
+            )
             if graph.get("seed_symbol"):
-                cut = (graph.get("min_cut") or {}).get("weight")
-                scc = (graph.get("tarjan") or {}).get("seed_scc_size")
-                n_bfs = len((graph.get("reverse_bfs") or {}).get("neighborhood") or [])
+                bfs = graph.get("reverse_bfs") or {}
+                cut = graph.get("min_cut") or {}
+                tarjan = graph.get("tarjan") or {}
+                n_bfs = len(bfs.get("neighborhood") or [])
+                members = ", ".join((tarjan.get("largest_scc_labels") or [])[:6]) or "(none)"
+                side = ", ".join((cut.get("seed_side_labels") or [])[:8])
                 lines.append(
                     f"   seed {graph.get('seed_path')}::{graph.get('seed_symbol')} "
-                    f"reverse_bfs={n_bfs} min_cut={cut} tarjan_scc={scc}"
+                    f"reverse_bfs depth={bfs.get('depth')} neighborhood={n_bfs} "
+                    f"path={' -> '.join(bfs.get('path') or [])} "
+                    f"Stoer–Wagner weight={cut.get('weight')} seed_side partition=[{side}] "
+                    f"Tarjan largest SCC size={tarjan.get('largest_scc_size')} members=[{members}]"
                 )
         for i, e in enumerate(payload["entries"], 1):
             parts = ", ".join(f"{k}={v:+.3f}" for k, v in e["parts"].items() if abs(v) > 0.0005)

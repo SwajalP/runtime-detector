@@ -393,7 +393,11 @@ def audit(repo: Optional[Path] = RepoOpt):
     summary = {
         "written": report.get("written"),
         "regions": report.get("regions"),
-        "large_sccs": len(report.get("large_sccs") or []),
+        "directed_edges": report.get("directed_edges"),
+        "resolved_calls": report.get("resolved_calls"),
+        "unresolved_calls": report.get("unresolved_calls"),
+        "reverse_bfs": report.get("reverse_bfs"),
+        "large_sccs": report.get("large_sccs"),
         "largest_scc_size": report.get("largest_scc_size"),
         "min_cut": report.get("min_cut"),
         "clone_clusters": len(report.get("clone_clusters") or []),

@@ -42,6 +42,10 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     assert "Memory hierarchy" in fallback
     assert "replay-banner" in fallback
     assert "Structural audit" in fallback
+    assert "Tarjan SCC" in fallback
+    assert "Stoer–Wagner partition" in fallback
+    assert "Seed side" in fallback
+    assert "Reverse BFS depths" in fallback
     audit = client.get("/api/audit").json()
     assert "large_sccs" in audit
     assert audit.get("fixture") is True or audit.get("kind") == "structural"
