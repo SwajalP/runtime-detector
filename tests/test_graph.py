@@ -1,0 +1,34 @@
+from fastapi.testclient import TestClient
+
+from ledger.api.app import create_app
+from ledger.api.graph import graph_payload, hierarchy_payload
+
+
+def test_graph_and_hierarchy_endpoints(demo_rt):
+    sid = demo_rt.new_session(agent="test", condition="ledger", task_id="renewal-discount")
+    demo_rt.set_objective(sid, "find renewal discount policy")
+    bundle = demo_rt.controller.build_bundle(sid, objective="loyalty discount on renewal", seed="for_renewal")
+    assert bundle["entries"]
+
+    graph = graph_payload(demo_rt, sid)
+    assert graph["nodes"]
+    assert graph["session_id"] == sid
+    assert "counts" in graph
+
+    hier = hierarchy_payload(demo_rt, sid)
+    assert set(hier["order"]) == {"L0", "L1", "L2", "backing"}
+    assert hier["levels"]["backing"]["count"] > 10
+    assert hier["token_budget"] == demo_rt.cfg.token_budget
+
+    app = create_app(demo_rt)
+    client = TestClient(app)
+    assert client.get("/api/health").json()["ok"] is True
+    g = client.get("/api/graph", params={"session_id": sid}).json()
+    assert g["counts"]["nodes"] >= 1
+    h = client.get("/api/graph/hierarchy", params={"session_id": sid}).json()
+    assert "L1" in h["levels"]
+    html = client.get("/").text
+    assert "LEDGER" in html
+    assert "/api/graph" in html
+    assert "Memory hierarchy" in html
+    assert "Code knowledge graph" in html

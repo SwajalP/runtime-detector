@@ -67,9 +67,13 @@ def run_pytest_traced(
                 "PYTHONPATH": os.pathsep.join([str(cfg.repo_root), env.get("PYTHONPATH", "")]).rstrip(os.pathsep),
             }
         )
-        # The plugin is also registered via the `pytest11` entry point; `-p` makes
-        # it work even when LEDGER is not installed into the target repo's venv.
-        cmd = [sys.executable, "-m", "coverage", "run", "--source", str(cfg.repo_root), "-m", "pytest", "-p", "ledger.trace.pytest_plugin", *args]
+        # `-p no:ledger` drops the setuptools entry point (same module, other name)
+        # so an explicit `-p ledger.trace.pytest_plugin` is safe whether or not
+        # LEDGER is installed into the target environment.
+        cmd = [
+            sys.executable, "-m", "coverage", "run", "--source", str(cfg.repo_root),
+            "-m", "pytest", "-p", "no:ledger", "-p", "ledger.trace.pytest_plugin", *args,
+        ]
         proc = subprocess.run(cmd, cwd=cfg.repo_root, env=env, capture_output=True, text=True, timeout=600)
         output = proc.stdout + proc.stderr
 
