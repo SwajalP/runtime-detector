@@ -1,18 +1,36 @@
 import React, { useEffect, useState } from "react";
+import CodeGraph from "./components/CodeGraph.jsx";
+import MemoryHierarchy from "./components/MemoryHierarchy.jsx";
 
 export default function App() {
   const [state, setState] = useState({ events: [], working_set: [], metrics: {}, heat: {}, execution_path: [] });
+  const [graph, setGraph] = useState({ nodes: [], edges: [] });
+  const [hierarchy, setHierarchy] = useState(null);
   const [ab, setAb] = useState("");
 
   async function refresh() {
-    const s = await (await fetch("/api/state")).json();
+    const [s, g, h] = await Promise.all([
+      fetch("/api/state").then((r) => r.json()),
+      fetch("/api/graph").then((r) => r.json()),
+      fetch("/api/graph/hierarchy").then((r) => r.json()),
+    ]);
     setState(s);
+    setGraph(g);
+    setHierarchy(h);
   }
 
   useEffect(() => {
     refresh();
     const es = new EventSource("/api/stream");
-    es.onmessage = () => refresh();
+    es.onmessage = (msg) => {
+      try {
+        const data = JSON.parse(msg.data);
+        if (data.type === "ping") return;
+      } catch {
+        return;
+      }
+      refresh();
+    };
     return () => es.close();
   }, []);
 
@@ -33,6 +51,10 @@ export default function App() {
   const m = state.metrics || {};
   const heat = Object.entries(state.heat || {}).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const max = heat[0]?.[1] || 1;
+  const ev = state.last_eval;
+  const evalLine = ev
+    ? `eval ${ev.n_tasks}×${ev.repeats || 1}: baseline ${ev.baseline?.success}/${ev.baseline?.n} vs LEDGER ${ev.ledger?.success}/${ev.ledger?.n} · tokens ${ev.change_pct?.repo_tokens ?? "—"}%`
+    : "";
 
   return (
     <div>
@@ -76,12 +98,12 @@ export default function App() {
         <div className="card">
           <h2>Joined execution path</h2>
           {(state.execution_path || []).length === 0 && (
-            <span style={{ color: "#8b97a8" }}>Run a failing test to light this up.</span>
+            <span className="empty">Run a failing test to light this up.</span>
           )}
           {(state.execution_path || []).map((p) => (
             <div className={"path " + (p.stale ? "stale" : "")} key={p.region_id}>
               {p.symbol || p.path}{" "}
-              <span style={{ color: "#8b97a8" }}>x={Number(p.execution_score || 0).toFixed(2)}</span>
+              <span className="muted">x={Number(p.execution_score || 0).toFixed(2)}</span>
             </div>
           ))}
         </div>
@@ -119,8 +141,17 @@ export default function App() {
             </tbody>
           </table>
         </div>
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Code knowledge graph</h2>
+          <CodeGraph graph={graph} />
+        </div>
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Memory hierarchy · L0 / L1 / L2 / backing</h2>
+          <MemoryHierarchy hierarchy={hierarchy} />
+        </div>
         <div className="card compare">
           <h2>Last A/B</h2>
+          {evalLine && <p className="muted">{evalLine}</p>}
           <pre>{ab}</pre>
         </div>
       </div>

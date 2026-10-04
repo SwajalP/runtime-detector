@@ -1,0 +1,49 @@
+# LEDGER Runtime architecture
+
+LEDGER is an online context-control layer between a coding agent and repository tools. It is a **logical cache of source regions**, not a model-provider KV cache.
+
+```
+agent ──► hooks / MCP / Agentverse / CLI
+              │
+              ▼
+        LedgerRuntime
+         ├─ EventCollector   agent_tool + program_trace + controller ops
+         ├─ incremental index  tree-sitter regions + FTS + call edges
+         ├─ ContextController  score → admit → represent → budget → prefetch
+         └─ SQLite store       sessions, working_set, bundles, co_access
+              │
+              ▼
+        FastAPI dashboard     /api/state  /api/graph  /api/graph/hierarchy
+```
+
+## Dual trace
+
+1. **Agent trace** — Pre/Post tool hooks (Claude Code) or the simulated harness record grep/read/edit/test events and the regions they touched.
+2. **Program trace** — `ledger test` / Agentverse `TraceRequest` runs pytest under coverage and maps executed lines onto the same region ids. Failing-test frames are pinned as L0 anchors.
+
+The controller joins the two traces: a region that was both searched and executed ranks above a region that only appeared in docs or marketing copy.
+
+## Memory hierarchy
+
+| Level | What lives there | Bound |
+|---|---|---|
+| L0 | Pinned anchors: failing frames, edited regions | pin set |
+| L1 | Current session bundle (exact / summary / signature) | `token_budget` (default 2400) |
+| L2 | Working-set + co-access memory on this repo | unbounded, decayed |
+| backing | Every indexed region, hash-versioned | the repository |
+
+Admission is `expected_value(score, tokens)` against `admission_threshold`. Replacement is `Keep(r)` under the token budget. Exact code is served only after a content-hash check against disk; a mismatch invalidates the path and is never counted as a hit (`stale_served` target is 0).
+
+## Agent-facing tools
+
+The same controller is exposed three ways:
+
+- MCP stdio: `ledger_search`, `ledger_context`, `ledger_explain`
+- CLI: `ledger context`, `ledger explain`, `ledger test`, `ledger eval`
+- Fetch.ai uAgent: `LedgerContextProtocol` + keyword-routed chat (`ledger agentverse`)
+
+Raw Grep / Read / Bash / Edit stay available. LEDGER annotates repeated broad search; it does not hide the repository.
+
+## Evaluation
+
+`ledger eval --repo demo_repo` runs a fixed simulated agent twice (baseline vs LEDGER) on the same commit and the same pytest selection. LEDGER's own injected tokens and tool calls are counted against LEDGER. Success is reported before efficiency. Held-out tasks (`held-out-proration`, `held-out-dunning`) are not used to tune weights.

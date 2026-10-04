@@ -67,3 +67,19 @@ button.baseline { border-color: #6a3340; background: #2a151a; }
 .bar { height: 8px; background: linear-gradient(90deg, #3b2a1f, var(--heat)); border-radius: 99px; }
 .compare { grid-column: 1 / -1; }
 pre { white-space: pre-wrap; font-size: 12px; color: #c9d4e5; }
+.empty, .muted { color: var(--muted); }
+.graph-wrap { position: relative; }
+.graph-svg { width: 100%; height: 420px; background: #0b1018; border-radius: 8px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 4px; }
+.graph-tip { margin-top: 8px; font-size: 12px; color: var(--ink); }
+.hier-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.hier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.hier-col { background: #0b1018; border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-height: 180px; }
+.hier-col h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.hier-col ul { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
+.hier-col li { margin: 6px 0; display: flex; flex-direction: column; gap: 2px; }
+.hier-col em { color: var(--muted); font-style: normal; }
+.occ { height: 6px; background: #1b2431; border-radius: 99px; margin: 8px 0; }
+.occ-bar { height: 100%; background: linear-gradient(90deg, #3ee0b0, #7aa2ff); border-radius: 99px; }
+.hier-log { margin-top: 12px; max-height: 220px; overflow: auto; }

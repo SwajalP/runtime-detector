@@ -6,16 +6,10 @@
   <title>LEDGER Runtime</title>
   <style>
     :root {
-      --bg: #07090d;
-      --panel: #10151d;
-      --ink: #e8edf5;
-      --muted: #8b97a8;
-      --line: #243042;
-      --hit: #3ee0b0;
-      --miss: #ff6b6b;
-      --warn: #f5c542;
-      --accent: #7aa2ff;
-      --heat: #ff7a45;
+      --bg: #07090d; --panel: #10151d; --ink: #e8edf5; --muted: #8b97a8;
+      --line: #243042; --hit: #3ee0b0; --miss: #ff6b6b; --warn: #f5c542;
+      --accent: #7aa2ff; --heat: #ff7a45; --l0: #3ee0b0; --l1: #7aa2ff;
+      --l2: #f5c542; --back: #8b97a8;
     }
     * { box-sizing: border-box; }
     body {
@@ -26,53 +20,56 @@
     }
     header {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 22px; border-bottom: 1px solid var(--line);
+      padding: 16px 22px; border-bottom: 1px solid var(--line); gap: 16px;
     }
     header strong { letter-spacing: 0.14em; font-size: 13px; }
     header span { color: var(--muted); font-size: 13px; }
-    .grid {
-      display: grid;
-      grid-template-columns: 1.1fr 1.2fr 0.9fr;
-      grid-template-rows: auto 1fr auto;
-      gap: 12px; padding: 12px;
-      min-height: calc(100vh - 58px);
-    }
+    .grid { display: grid; grid-template-columns: 1.1fr 1.2fr 0.9fr; gap: 12px; padding: 12px; }
     .card {
       background: color-mix(in srgb, var(--panel) 88%, black);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px 14px;
-      overflow: auto;
+      border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow: auto;
     }
+    .wide { grid-column: 1 / -1; }
+    .span2 { grid-column: 2 / -1; }
     .metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; background: transparent; border: 0; padding: 0; }
     .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
     .metric b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
     .metric label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
     h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-    .evt { display: grid; grid-template-columns: 64px 88px 1fr; gap: 8px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1b2431; }
+    h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .evt { display: grid; grid-template-columns: 48px 110px 1fr; gap: 8px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1b2431; }
     .op-grep,.op-glob { color: var(--warn); }
     .op-read { color: var(--accent); }
     .op-test,.op-execute { color: #c08bff; }
     .op-admit,.op-hit,.op-bundle_served,.op-prefetch { color: var(--hit); }
     .op-evict,.op-miss { color: var(--miss); }
-    .op-invalidate { color: #ff8a5b; }
-    .path {
-      display: flex; gap: 8px; align-items: center; padding: 7px 0;
-      border-left: 2px solid var(--heat); padding-left: 10px; margin: 6px 0;
-      font-size: 13px;
-    }
+    .op-invalidate,.op-stale_blocked { color: #ff8a5b; }
+    .path { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-left: 2px solid var(--heat); padding-left: 10px; margin: 6px 0; font-size: 13px; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #1b2431; vertical-align: top; }
     .stale { color: var(--miss); font-weight: 600; }
-    .toolbar { display: flex; gap: 8px; }
-    button {
-      background: #1a2740; color: var(--ink); border: 1px solid #35508a;
-      border-radius: 8px; padding: 8px 10px; cursor: pointer;
-    }
+    .muted, .empty { color: var(--muted); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { background: #1a2740; color: var(--ink); border: 1px solid #35508a; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
     button.baseline { border-color: #6a3340; background: #2a151a; }
     .heatrow { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 4px 0; }
     .bar { height: 8px; background: linear-gradient(90deg, #3b2a1f, var(--heat)); border-radius: 99px; }
-    .compare { grid-column: 1 / -1; }
+    pre { white-space: pre-wrap; font-size: 12px; color: #c9d4e5; }
+    .graph-svg { width: 100%; height: 420px; background: #0b1018; border-radius: 8px; }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 4px; }
+    .hier-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .hier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .hier-col { background: #0b1018; border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-height: 180px; }
+    .hier-col ul { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
+    .hier-col li { margin: 6px 0; display: flex; flex-direction: column; gap: 2px; }
+    .occ { height: 6px; background: #1b2431; border-radius: 99px; margin: 8px 0; }
+    .occ-bar { height: 100%; background: linear-gradient(90deg, #3ee0b0, #7aa2ff); border-radius: 99px; }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .hier-grid { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -101,71 +98,194 @@
       <h2>Context temperature</h2>
       <div id="heat"></div>
     </div>
-    <div class="card" style="grid-column: 2 / -1">
+    <div class="card span2">
       <h2>Active working set</h2>
       <div id="ws"></div>
     </div>
-    <div class="card compare">
+    <div class="card wide">
+      <h2>Code knowledge graph</h2>
+      <svg id="graph" class="graph-svg" viewBox="0 0 920 420"></svg>
+      <div class="legend">
+        <span><i style="background:#3ee0b0"></i>L0 anchors</span>
+        <span><i style="background:#7aa2ff"></i>L1 bundle</span>
+        <span><i style="background:#f5c542"></i>L2 memory</span>
+        <span><i style="background:#8b97a8"></i>backing</span>
+        <span><i style="background:#ff7a45"></i>exec edge</span>
+        <span><i style="background:#ff6b6b"></i>stale / successor</span>
+      </div>
+      <div id="graph-tip" class="muted"></div>
+    </div>
+    <div class="card wide">
+      <h2>Memory hierarchy · L0 / L1 / L2 / backing</h2>
+      <div id="hier"></div>
+    </div>
+    <div class="card wide">
       <h2>Last A/B</h2>
-      <pre id="ab" style="white-space:pre-wrap; font-size:12px; color:#c9d4e5"></pre>
+      <div id="ab-summary" class="muted"></div>
+      <pre id="ab"></pre>
     </div>
   </div>
   <script>
     const $ = (id) => document.getElementById(id);
-    function render(state) {
+    const LEVEL = { L0: "#3ee0b0", L1: "#7aa2ff", L2: "#f5c542", backing: "#8b97a8" };
+    const EDGE = { call: "#7aa2ff", exec: "#ff7a45", co_access: "#3ee0b0", co_access_history: "#5a6b7d", successor: "#ff6b6b" };
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function renderState(state) {
       const m = state.metrics || {};
       const cells = [
         ["session", (state.session_id || "—").slice(0, 16)],
         ["tool calls", m.repo_tool_calls ?? "—"],
         ["repo tokens", m.repo_tokens ?? "—"],
-        ["hit rate", m.hit_rate != null ? (m.hit_rate*100).toFixed(0)+"%" : "—"],
+        ["hit rate", m.hit_rate != null ? (m.hit_rate * 100).toFixed(0) + "%" : "—"],
         ["invalidations", m.invalidations ?? 0],
         ["stale", m.stale_entries ?? 0],
       ];
-      $("metrics").innerHTML = cells.map(([k,v]) => `<div class="metric"><label>${k}</label><b>${v}</b></div>`).join("");
-      $("events").innerHTML = (state.events||[]).slice(-80).reverse().map(e =>
-        `<div class="evt"><span>${e.turn}</span><span class="op-${e.operation}">${e.operation}</span><span>${(e.query||e.source||"").toString().slice(0,88)}</span></div>`
+      $("metrics").innerHTML = cells.map(([k, v]) => `<div class="metric"><label>${esc(k)}</label><b>${esc(v)}</b></div>`).join("");
+      $("events").innerHTML = (state.events || []).slice(-80).reverse().map((e) =>
+        `<div class="evt"><span>${esc(e.turn)}</span><span class="op-${esc(e.operation)}">${esc(e.operation)}</span><span>${esc((e.query || e.source || "").toString().slice(0, 88))}</span></div>`
       ).join("");
-      $("path").innerHTML = (state.execution_path||[]).map(p =>
-        `<div class="path ${p.stale ? "stale":""}">${p.symbol||p.path} <span style="color:#8b97a8">x=${Number(p.execution_score||0).toFixed(2)}</span></div>`
-      ).join("") || "<span style='color:#8b97a8'>Run a failing test to light this up.</span>";
-      const heat = Object.entries(state.heat||{}).sort((a,b)=>b[1]-a[1]).slice(0,12);
+      $("path").innerHTML = (state.execution_path || []).map((p) =>
+        `<div class="path ${p.stale ? "stale" : ""}">${esc(p.symbol || p.path)} <span class="muted">x=${Number(p.execution_score || 0).toFixed(2)}</span></div>`
+      ).join("") || "<span class='empty'>Run a failing test to light this up.</span>";
+      const heat = Object.entries(state.heat || {}).sort((a, b) => b[1] - a[1]).slice(0, 12);
       const max = heat[0]?.[1] || 1;
-      $("heat").innerHTML = heat.map(([p,v]) =>
-        `<div class="heatrow"><div class="bar" style="width:${Math.max(8,(v/max)*100)}%"></div><span>${p}</span></div>`
+      $("heat").innerHTML = heat.map(([p, v]) =>
+        `<div class="heatrow"><div class="bar" style="width:${Math.max(8, (v / max) * 100)}%"></div><span>${esc(p)}</span></div>`
       ).join("");
-      const rows = (state.working_set||[]).slice(0,18).map(w =>
-        `<tr><td>${w.symbol||w.path||w.region_id}</td><td>${Number(w.execution_score||0).toFixed(2)}</td>
-         <td>${Number(w.access_frequency||0).toFixed(1)}</td>
-         <td class="${w.stale?'stale':''}">${w.stale?'STALE':'fresh'}</td>
-         <td>${(w.explanation||"").slice(0,80)}</td></tr>`
+      const rows = (state.working_set || []).slice(0, 18).map((w) =>
+        `<tr><td>${esc(w.symbol || w.path || w.region_id)}</td><td>${Number(w.execution_score || 0).toFixed(2)}</td>
+         <td>${Number(w.access_frequency || 0).toFixed(1)}</td>
+         <td class="${w.stale ? "stale" : ""}">${w.stale ? "STALE" : "fresh"}</td>
+         <td>${esc((w.explanation || "").slice(0, 80))}</td></tr>`
       ).join("");
       $("ws").innerHTML = `<table><tr><th>region</th><th>exec</th><th>freq</th><th>fresh</th><th>why</th></tr>${rows}</table>`;
+      const ev = state.last_eval;
+      if (ev && ev.baseline && ev.ledger) {
+        $("ab-summary").textContent =
+          `suite ${ev.n_tasks} tasks × ${ev.repeats || 1} · success baseline ${ev.baseline.success}/${ev.baseline.n} vs LEDGER ${ev.ledger.success}/${ev.ledger.n}` +
+          ` · repo tokens Δ ${ev.change_pct?.repo_tokens ?? "—"}% · calls Δ ${ev.change_pct?.repo_tool_calls ?? "—"}%`;
+      }
+    }
+
+    function layout(nodes, w, h) {
+      const pkgs = [];
+      const by = new Map();
+      for (const n of nodes) {
+        const pkg = n.package || ".";
+        if (!by.has(pkg)) { by.set(pkg, []); pkgs.push(pkg); }
+        by.get(pkg).push(n);
+      }
+      const colW = w / Math.max(pkgs.length, 1);
+      const pos = {};
+      pkgs.forEach((pkg, i) => {
+        const col = by.get(pkg).sort((a, b) => (a.start_line || 0) - (b.start_line || 0));
+        const rowH = h / (col.length + 1);
+        col.forEach((n, j) => { pos[n.id] = { x: colW * (i + 0.5), y: rowH * (j + 1) }; });
+      });
+      return pos;
+    }
+
+    function renderGraph(graph) {
+      const svg = $("graph");
+      const NS = "http://www.w3.org/2000/svg";
+      svg.innerHTML = "";
+      const nodes = graph.nodes || [];
+      const edges = graph.edges || [];
+      if (!nodes.length) {
+        $("graph-tip").textContent = "Index a repo and run a task to populate the knowledge graph.";
+        return;
+      }
+      const pos = layout(nodes, 920, 420);
+      for (const e of edges) {
+        const a = pos[e.source], b = pos[e.target];
+        if (!a || !b) continue;
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
+        line.setAttribute("stroke", EDGE[e.type] || "#35508a");
+        line.setAttribute("stroke-width", e.type === "exec" ? "2" : "1");
+        line.setAttribute("opacity", e.type === "co_access_history" ? "0.35" : "0.7");
+        svg.appendChild(line);
+      }
+      for (const n of nodes) {
+        const p = pos[n.id];
+        if (!p) continue;
+        const c = document.createElementNS(NS, "circle");
+        c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
+        c.setAttribute("r", n.frame || n.pinned ? 8 : n.in_bundle ? 6 : 4);
+        c.setAttribute("fill", n.stale ? "#ff6b6b" : (LEVEL[n.level] || "#8b97a8"));
+        c.setAttribute("stroke", n.joined ? "#fff" : "transparent");
+        c.setAttribute("stroke-width", n.joined ? "1.5" : "0");
+        c.addEventListener("mouseenter", () => {
+          $("graph-tip").textContent = `${n.symbol}  ${n.path}:${n.start_line}-${n.end_line}  ${n.level}  ${n.explanation || ""}`;
+        });
+        svg.appendChild(c);
+      }
+      const c = graph.counts || {};
+      $("graph-tip").textContent = `${c.nodes || 0} nodes · ${c.edges || 0} edges · joined ${c.joined || 0} · stale ${c.stale || 0}`;
+    }
+
+    function renderHier(h) {
+      if (!h || !h.levels) { $("hier").innerHTML = "<span class='empty'>No hierarchy yet — run a session.</span>"; return; }
+      const s = h.stats || {};
+      const order = h.order || ["L0", "L1", "L2", "backing"];
+      const stats = `<div class="hier-stats">
+        <span>budget ${s.budget ?? "—"}</span><span>used ${s.bundle_tokens ?? "—"}</span>
+        <span>hit ${s.hit_rate ?? "—"}</span><span>pollution ${s.pollution_rate ?? "—"}</span>
+        <span>prefetch ${s.prefetch_used ?? 0}/${s.prefetches ?? 0}</span>
+        <span>stale blocked ${s.stale_blocked ?? 0}</span>
+      </div>`;
+      const cols = order.map((key) => {
+        const lv = h.levels[key] || {};
+        const occ = lv.occupancy == null ? 0 : Math.min(1, lv.occupancy);
+        const items = (lv.entries || []).slice(0, 12).map((e) =>
+          `<li class="${e.stale ? "stale" : ""}"><b>${esc(e.symbol)}</b><span>${esc(e.path)}:${e.start_line}-${e.end_line}</span></li>`
+        ).join("");
+        return `<div class="hier-col"><h3>${esc(lv.label || key)}</h3>
+          <p class="muted">${esc(lv.description || "")}</p>
+          <div class="occ"><div class="occ-bar" style="width:${occ * 100}%"></div></div>
+          <div class="muted">${lv.used ?? 0}${lv.capacity != null ? " / " + lv.capacity : ""} · ${lv.count ?? 0} regions</div>
+          <ul>${items}</ul></div>`;
+      }).join("");
+      $("hier").innerHTML = stats + `<div class="hier-grid">${cols}</div>`;
+    }
+
+    async function refresh() {
+      const [state, graph, hier] = await Promise.all([
+        (await fetch("/api/state")).json(),
+        (await fetch("/api/graph")).json(),
+        (await fetch("/api/graph/hierarchy")).json(),
+      ]);
+      renderState(state);
+      renderGraph(graph);
+      renderHier(hier);
     }
     async function boot() {
-      const s = await (await fetch("/api/state")).json();
-      render(s);
+      await refresh();
       const es = new EventSource("/api/stream");
-      es.onmessage = async (msg) => {
-        const data = JSON.parse(msg.data);
-        if (data.type === "snapshot") render(data.state);
-        if (data.type === "event") {
-          const s = await (await fetch("/api/state")).json();
-          render(s);
-        }
+      es.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+          if (data.type === "ping") return;
+        } catch (err) { return; }
+        refresh();
       };
     }
     async function run(task, condition) {
       $("ab").textContent = "running " + condition + "…";
-      const r = await fetch(`/api/eval/run?task_id=${task}&condition=${condition}`, {method:"POST"});
+      const r = await fetch(`/api/eval/run?task_id=${task}&condition=${condition}`, { method: "POST" });
       $("ab").textContent = JSON.stringify(await r.json(), null, 2);
-      render(await (await fetch("/api/state")).json());
+      await refresh();
     }
     async function compare() {
       $("ab").textContent = "comparing…";
-      const r = await fetch("/api/eval/compare?task_id=renewal-discount", {method:"POST"});
+      const r = await fetch("/api/eval/compare?task_id=renewal-discount", { method: "POST" });
       $("ab").textContent = JSON.stringify(await r.json(), null, 2);
-      render(await (await fetch("/api/state")).json());
+      await refresh();
     }
     boot();
   </script>
