@@ -25,6 +25,7 @@ import sqlite3
 from collections import deque
 
 from traceweaver.graphalg.algorithms import reverse_bfs, stoer_wagner, tarjan_scc
+from traceweaver.graphalg.clones import clones_from_conn
 from traceweaver.graphalg.apply import (
     FAILING_PATH,
     FAILING_SYMBOL,
@@ -677,6 +678,30 @@ def debt_from_conn(conn: sqlite3.Connection) -> dict:
     regions = _load_regions(conn)
     report = analyze_debt(graph, regions)
     report["worked_example"] = _worked_example(conn, graph, regions, report)
+    clones = clones_from_conn(conn)
+    redundant = int(clones["total_redundant_cost"])
+    structural = report["total_debt"]
+    report["structural_debt"] = structural
+    report["redundant"] = {
+        "label": "redundant functions",
+        "cost": redundant,
+        "savings": clones["total_savings"],
+        "clusters": clones["cluster_count"],
+        "formula": clones["formula"],
+        "note": (
+            "TraceWeaver AST clone cost. Separate from choke, tangled, and complex findings."
+        ),
+    }
+    report["total_debt"] = _num(structural + redundant)
+    report["dollar_equivalent"] = report["total_debt"]
+    formula = dict(report.get("formula") or {})
+    formula["redundant_cost"] = "(copies - 1) * max(1, len(source)//4)"
+    formula["redundant_rule"] = (
+        "Same-shape functions after AST normalization, plus near clones with "
+        "node-type trigram Jaccard >= 0.82. Priced once, beside choke, tangled, and complex."
+    )
+    formula["total"] = "sum of finding costs + redundant_cost"
+    report["formula"] = formula
     return report
 
 

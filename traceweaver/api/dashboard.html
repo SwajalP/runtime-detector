@@ -98,6 +98,7 @@
     <div>
       <strong>TraceWeaver RUNTIME</strong>
       <span> context memory hierarchy · dual-trace controller</span>
+      <span id="vector-line" class="muted"></span>
       <span id="replay-banner" class="muted" hidden></span>
     </div>
     <div class="toolbar">
@@ -157,6 +158,10 @@
       <div id="debt"></div>
     </div>
     <div class="card wide">
+      <h2>Redundant functions</h2>
+      <div id="clones"></div>
+    </div>
+    <div class="card wide">
       <h2>Last A/B</h2>
       <div id="ab-summary" class="muted"></div>
       <pre id="ab"></pre>
@@ -174,6 +179,11 @@
     }
 
     function renderState(state) {
+      const vectors = state.vectors || {};
+      const vectorLine = $("vector-line");
+      if (vectorLine) {
+        vectorLine.textContent = ` · vector store: ${vectors.backend || "sqlite-cosine"} · ${vectors.count ?? 0} regions · dim ${vectors.dimension ?? 256}`;
+      }
       const banner = $("replay-banner");
       if (banner) {
         banner.hidden = !state.replay;
@@ -374,11 +384,11 @@
       }
       note.textContent = debt.disclaimer || "Simulated local analysis of the indexed call graph.";
       const f = debt.formula || {};
-      const formula = ["tangled_cost", "choke_cost", "complex_cost", "hub_cost", "orphan_cost", "total"]
+      const formula = ["tangled_cost", "choke_cost", "complex_cost", "hub_cost", "orphan_cost", "redundant_cost", "total"]
         .filter((k) => f[k])
         .map((k) => `<div><code>${esc(k)}</code> = ${esc(f[k])}</div>`)
         .join("");
-      const rules = [f.tangled_rule, f.choke_rule, f.complex_bar, f.hub_rule, f.orphan_rule, f.dollar_rate]
+      const rules = [f.tangled_rule, f.choke_rule, f.complex_bar, f.hub_rule, f.orphan_rule, f.redundant_rule, f.dollar_rate]
         .filter(Boolean)
         .map((t) => `<li>${esc(t)}</li>`)
         .join("");
@@ -403,6 +413,7 @@
         <div class="debt-head">
           <div class="metric"><label>total debt</label><b>${esc(debt.total_debt)}</b><span class="muted">debt-tokens</span></div>
           <div class="metric"><label>dollar equivalent</label><b>$${esc(debt.dollar_equivalent)}</b><span class="muted">${esc(f.dollar_rate || "")}</span></div>
+          ${debt.redundant ? `<div class="metric"><label>redundant functions</label><b>${esc(debt.redundant.cost)}</b><span class="muted">debt-tokens, beside choke / tangled / complex</span></div>` : ""}
         </div>
         <h3>Formula</h3>
         <div class="debt-formula">${formula}</div>
@@ -420,13 +431,14 @@
     }
 
     async function refresh() {
-      const [state, graph, hier, audit, lake, debt] = await Promise.all([
+      const [state, graph, hier, audit, lake, debt, clones] = await Promise.all([
         (await fetch("/api/state")).json(),
         (await fetch("/api/graph")).json(),
         (await fetch("/api/graph/hierarchy")).json(),
         (await fetch("/api/audit")).json(),
         fetch("/api/lake").then((r) => r.json()).catch(() => null),
         fetch("/api/debt").then((r) => r.json()).catch(() => null),
+        fetch("/api/clones").then((r) => r.json()).catch(() => null),
       ]);
       if (lake) state.lake = lake;
       debtHighlight = (debt && debt.highlight) || {};
@@ -435,7 +447,39 @@
       renderHier(hier);
       renderAudit(audit);
       renderDebt(debt);
+      renderClones(clones);
       renderLake(state.lake);
+    }
+
+    function renderClones(clones) {
+      const el = $("clones");
+      if (!el) return;
+      if (!clones) {
+        el.innerHTML = `<p class="muted">TraceWeaver redundant-function analysis unavailable</p>`;
+        return;
+      }
+      const clusters = clones.clusters || [];
+      const rows = clusters.map((cluster) => {
+        const members = cluster.members || [];
+        const names = members.map((member) => esc(member.name)).join(", ");
+        const paths = members.map((member) => esc(member.path)).join(", ");
+        return `<tr>
+          <td>${names}</td>
+          <td>${paths}</td>
+          <td>${esc(cluster.match)} · ${esc(cluster.similarity)}</td>
+          <td><b>${esc(cluster.savings)}</b></td>
+          <td>${esc(cluster.note)}</td>
+        </tr>`;
+      }).join("");
+      const table = clusters.length
+        ? `<table>
+            <thead><tr><th>names</th><th>paths</th><th>similarity</th><th>token savings</th><th>why</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`
+        : `<p class="muted">No redundant functions.</p>`;
+      el.innerHTML = `
+        <p class="muted">TraceWeaver savings if each cluster is reduced to one copy: <b>${esc(clones.total_savings ?? 0)}</b> debt-tokens. ${esc(clones.formula || "")}</p>
+        ${table}`;
     }
     async function boot() {
       await refresh();

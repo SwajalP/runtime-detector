@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import CodeGraph from "./components/CodeGraph.jsx";
+import ClonesPanel from "./components/ClonesPanel.jsx";
 import DebtPanel from "./components/DebtPanel.jsx";
 import MemoryHierarchy from "./components/MemoryHierarchy.jsx";
 
@@ -62,15 +63,17 @@ export default function App() {
   const [audit, setAudit] = useState(null);
   const [lake, setLake] = useState(null);
   const [debt, setDebt] = useState(null);
+  const [clones, setClones] = useState(null);
 
   async function refresh() {
-    const [s, g, h, a, lakeBody, debtBody] = await Promise.all([
+    const [s, g, h, a, lakeBody, debtBody, clonesBody] = await Promise.all([
       fetch("/api/state").then((r) => r.json()),
       fetch("/api/graph").then((r) => r.json()),
       fetch("/api/graph/hierarchy").then((r) => r.json()),
       fetch("/api/audit").then((r) => r.json()).catch(() => null),
       fetch("/api/lake").then((r) => r.json()).catch(() => null),
       fetch("/api/debt").then((r) => r.json()).catch(() => null),
+      fetch("/api/clones").then((r) => r.json()).catch(() => null),
     ]);
     setState(s);
     setGraph(g);
@@ -78,6 +81,7 @@ export default function App() {
     setAudit(a);
     setLake(lakeBody || s.lake || null);
     setDebt(debtBody);
+    setClones(clonesBody);
   }
 
   useEffect(() => {
@@ -123,6 +127,10 @@ export default function App() {
         <div>
           <strong>TraceWeaver RUNTIME</strong>
           <span> context memory hierarchy · dual-trace controller</span>
+          <span>
+            {" "}
+            · vector store: {(state.vectors || {}).backend || "sqlite-cosine"} · {(state.vectors || {}).count ?? 0} regions · dim {(state.vectors || {}).dimension ?? 256}
+          </span>
           {state.replay ? <span> · REPLAY — recorded events, not a live model</span> : null}
         </div>
         <div className="toolbar">
@@ -232,6 +240,10 @@ export default function App() {
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Technical debt · choke / tangled / complex</h2>
           <DebtPanel debt={debt} />
+        </div>
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Redundant functions</h2>
+          <ClonesPanel clones={clones} />
         </div>
         <div className="card compare">
           <h2>Last A/B</h2>

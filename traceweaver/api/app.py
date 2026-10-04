@@ -61,6 +61,18 @@ def create_app(runtime: TraceWeaverRuntime | None = None) -> FastAPI:
 
         return debt_for_runtime(runtime)
 
+    @app.get("/api/clones")
+    def clones_view():
+        from traceweaver.graphalg.clones import clones_for_runtime
+
+        return clones_for_runtime(runtime)
+
+    @app.get("/api/vectors")
+    def vectors():
+        from traceweaver.index.embeddings import vector_status
+
+        return vector_status(runtime.cfg, runtime.conn)
+
     @app.get("/api/state")
     def state(session_id: str | None = None):
         return runtime.dashboard_state(session_id)

@@ -8,9 +8,7 @@ present, is loaded from a labeled fixture.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import re
 
 from traceweaver.config import TraceWeaverConfig
 from traceweaver.fixtures import load_fixture
@@ -25,18 +23,12 @@ from traceweaver.graphalg.apply import (
     symbol_neighborhood,
     undirected_component,
 )
+from traceweaver.graphalg.clones import clones_from_conn
 from traceweaver.graphalg.debt import debt_from_conn
 from traceweaver.runtime import TraceWeaverRuntime
 
-_COMMENT = re.compile(r"#.*")
-_SPACE = re.compile(r"\s+")
 _TRAP_PREFIXES = ("shop/legacy/", "shop/promotions/", "shop/catalog/", "shop/notifications/")
 _TRAP_TOKENS = ("renewal", "discount", "loyalty")
-
-
-def _norm_body(body: str) -> str:
-    text = _COMMENT.sub("", body or "")
-    return _SPACE.sub(" ", text).strip().lower()
 
 
 def _labels(conn, ids: list[str], limit: int = 40) -> list[str]:
@@ -97,31 +89,6 @@ def _min_cut_around_failing(conn, graph: dict[str, list[str]]) -> dict:
     }
 
 
-def _clone_clusters(conn) -> list[dict]:
-    groups: dict[str, list[dict]] = {}
-    rows = conn.execute(
-        """
-        SELECT region_id, path, symbol, kind, body FROM source_regions
-        WHERE kind IN ('function', 'method')
-        """
-    ).fetchall()
-    for row in rows:
-        norm = _norm_body(row["body"] or "")
-        if len(norm) < 48:
-            continue
-        digest = hashlib.sha256(norm.encode("utf-8")).hexdigest()[:16]
-        groups.setdefault(digest, []).append(
-            {"path": row["path"], "symbol": row["symbol"], "kind": row["kind"]}
-        )
-    clusters = []
-    for digest, members in groups.items():
-        if len(members) < 2:
-            continue
-        clusters.append({"hash": digest, "size": len(members), "regions": members})
-    clusters.sort(key=lambda item: item["size"], reverse=True)
-    return clusters
-
-
 def _lexical_traps(conn) -> list[dict]:
     traps = []
     rows = conn.execute(
@@ -163,6 +130,7 @@ def build_audit(cfg: TraceWeaverConfig) -> dict:
         rt.reindex()
     else:
         rt.sync()
+    clones = clones_from_conn(rt.conn)
     graph = call_graph(rt.conn)
     sccs = tarjan_scc(graph)
     comparison = load_fixture("audit_comparison.json")
@@ -202,7 +170,8 @@ def build_audit(cfg: TraceWeaverConfig) -> dict:
         "large_sccs": _large_sccs(rt.conn, graph),
         "min_cut": _min_cut_around_failing(rt.conn, graph),
         "debt": debt_from_conn(rt.conn),
-        "clone_clusters": _clone_clusters(rt.conn),
+        "clones": clones,
+        "clone_clusters": clones["clusters"],
         "lexical_traps": _lexical_traps(rt.conn),
         "fixture_comparison": comparison,
         "mailbox_status": load_fixture("mailbox_status.json"),
@@ -238,6 +207,12 @@ def load_audit_for_dashboard(cfg: TraceWeaverConfig) -> dict:
         "large_sccs": [],
         "min_cut": None,
         "reverse_bfs": None,
+        "clones": {
+            "clusters": [],
+            "total_redundant_cost": 0,
+            "total_savings": 0,
+            "formula": "redundant_cost = (copies - 1) * max(1, len(source)//4)",
+        },
         "clone_clusters": [],
         "lexical_traps": [],
     }

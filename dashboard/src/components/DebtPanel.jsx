@@ -1,11 +1,11 @@
-const FORMULA_KEYS = ["tangled_cost", "choke_cost", "complex_cost", "hub_cost", "orphan_cost", "total"];
+const FORMULA_KEYS = ["tangled_cost", "choke_cost", "complex_cost", "hub_cost", "orphan_cost", "redundant_cost", "total"];
 
 export default function DebtPanel({ debt }) {
   if (!debt || debt.total_debt == null) {
     return <p className="muted">debt analysis unavailable</p>;
   }
   const formula = debt.formula || {};
-  const rules = [formula.tangled_rule, formula.choke_rule, formula.complex_bar, formula.hub_rule, formula.orphan_rule, formula.dollar_rate]
+  const rules = [formula.tangled_rule, formula.choke_rule, formula.complex_bar, formula.hub_rule, formula.orphan_rule, formula.redundant_rule, formula.dollar_rate]
     .filter(Boolean);
   const example = (debt.worked_example || {}).arithmetic || [];
   const exampleIds = (debt.worked_example || {}).graph_node_ids || [];
@@ -26,6 +26,13 @@ export default function DebtPanel({ debt }) {
           <b>${debt.dollar_equivalent}</b>
           <span className="muted">{formula.dollar_rate || ""}</span>
         </div>
+        {debt.redundant && (
+          <div className="metric">
+            <label>redundant functions</label>
+            <b>{debt.redundant.cost}</b>
+            <span className="muted">debt-tokens, beside choke / tangled / complex</span>
+          </div>
+        )}
       </div>
       <h3>Formula</h3>
       <div className="debt-formula">
