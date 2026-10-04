@@ -59,7 +59,8 @@ ledger agentverse --repo demo_repo --local --port 8000
 ```
 
 Same controller over `LedgerContextProtocol` / ASI:One chat handler.
-Mailbox address is a placeholder; do not claim a published Agentverse
-registration unless you have one.
+Local demo identity (not a registered mailbox):
+`agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
+Do not claim the ASI:One submission form was submitted.
 
 Stop. Do not invent metrics. Do not claim a Claude live A/B you did not run.

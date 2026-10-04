@@ -78,14 +78,23 @@ def run_cmd(
     if agent == "claude":
         condition = "baseline" if baseline else "ledger"
         sid = rt.new_session(agent="claude", condition=condition, task_id=task)
+        py = sys.executable
         console.print(f"Session [bold]{sid}[/bold] ({condition})")
-        console.print("Claude Code hooks + MCP server installed in the repo. In the repo directory run:")
-        if baseline:
-            console.print("  [cyan]LEDGER_OBSERVE_ONLY=1 claude --strict-mcp-config[/cyan]   (records, never advises)")
-        else:
-            console.print("  [cyan]claude[/cyan]   then use ledger_context / ledger_search / ledger_explain")
-            console.print(f"  policy to append to your system prompt: {rt.cfg.ledger_dir / 'AGENT_POLICY.md'}")
+        console.print(f"Hooks + MCP use this interpreter: [cyan]{py}[/cyan]")
+        console.print(f"  hook: {py} -m ledger hook <phase> --repo {rt.cfg.repo_root}")
+        console.print(f"  mcp:  {py} -m ledger mcp --repo {rt.cfg.repo_root}")
+        console.print("Two conditions (set the env when you launch claude; hooks read it at process start):")
+        console.print("  baseline, observe-only, no advice:")
+        console.print("    [cyan]LEDGER_OBSERVE_ONLY=1 claude --strict-mcp-config[/cyan]")
+        console.print("  ledger, advice + ledger_context / ledger_search / ledger_explain:")
+        console.print("    [cyan]claude[/cyan]")
+        console.print(f"  policy: {rt.cfg.ledger_dir / 'AGENT_POLICY.md'}")
+        console.print("Login-free demo of the same hook schema (does not need the claude binary):")
+        console.print(f"  [cyan]ledger ab --task {task or 'renewal-discount'} --repo {rt.cfg.repo_root}[/cyan]")
+        console.print(f"Prompt file: docs/prompts/renewal-discount.md")
         console.print(f"Dashboard: [cyan]ledger serve --repo {rt.cfg.repo_root}[/cyan]")
+        if baseline:
+            console.print("This session is the observe-only baseline. Export LEDGER_OBSERVE_ONLY=1 before claude.")
         return
     tasks = {t["id"]: t for t in load_tasks(rt.cfg.repo_root)}
     task = task or next(iter(tasks))
@@ -93,6 +102,23 @@ def run_cmd(
         raise typer.BadParameter(f"unknown task {task}; known: {', '.join(tasks)}")
     rt.new_session(agent="simulated", condition="baseline" if baseline else "ledger", task_id=task)
     console.print_json(data=run_task(rt, tasks[task], use_ledger=not baseline))
+
+
+@app.command("ab")
+def ab_cmd(
+    task: str = typer.Option("renewal-discount", "--task", help="Task id (default renewal-discount)"),
+    repo: Optional[Path] = RepoOpt,
+    attempt_claude: bool = typer.Option(
+        True,
+        "--attempt-claude/--hooks-only",
+        help="Probe claude -p. Login failure is recorded and does not replace the hook A/B.",
+    ),
+):
+    """Hook-schema A/B: observe-only baseline vs LEDGER advice. No Claude login required."""
+    from ledger.adapters.claude_ab import run_ab
+
+    report = run_ab(_cfg(repo), task_id=task, attempt_claude=attempt_claude)
+    _print_ab(report)
 
 
 @app.command()
@@ -296,6 +322,29 @@ def agentverse(
     run_agent(repo=repo, local=local, port=port, seed=seed)
 
 
+@app.command("agentverse-ask")
+def agentverse_ask(
+    objective: str = typer.Argument(..., help="Natural-language objective or chat utterance"),
+    port: int = typer.Option(8000, help="Port of a running local agent"),
+    chat: bool = typer.Option(False, "--chat", help="Send ChatText instead of ContextRequest"),
+    endpoint: Optional[str] = typer.Option(None, help="Override the /submit URL"),
+):
+    """Ask a locally running ledger-runtime agent. Uses the committed demo identity."""
+    import asyncio
+
+    from ledger.agentverse.client import ask, format_reply, reply_ok
+    from ledger.agentverse.identity import LOCAL_IDENTITY_LABEL, demo_address
+
+    address = demo_address()
+    url = endpoint or f"http://127.0.0.1:{port}/submit"
+    console.print(f"{LOCAL_IDENTITY_LABEL}: {address}")
+    result = asyncio.run(ask(address, objective, url, chat=chat))
+    text = format_reply(result)
+    console.print(text)
+    if not reply_ok(text):
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def version():
     console.print(__version__)
@@ -345,6 +394,30 @@ def _print_suite(suite: dict) -> None:
     console.print(per)
     if suite.get("regressions"):
         console.print(f"[red]regressions:[/red] {suite['regressions']}")
+
+
+def _print_ab(report: dict) -> None:
+    table = Table(title=f"hook A/B · {report['task_id']} · source={report['source']}")
+    for col in ("condition", "target found", "advice", "repo calls", "ledger calls", "repo tokens"):
+        table.add_column(col)
+    for key in ("baseline", "ledger"):
+        row = report[key]
+        table.add_row(
+            row["condition"],
+            "yes" if row["target_found"] else "no",
+            str(row["advice_count"]),
+            str(row["repo_tool_calls"]),
+            str(row["ledger_tool_calls"]),
+            str(row["repo_tokens"]),
+        )
+    console.print(table)
+    claude = report.get("claude") or {}
+    if claude.get("ran"):
+        console.print("[green]claude live run stored separately (source=claude)[/green]")
+    else:
+        console.print(f"claude live: not run — {claude.get('reason')}")
+    console.print(report.get("note", ""))
+    console.print(f"[dim]written: {report.get('written')}[/dim]")
 
 
 def _pct(v) -> str:

@@ -13,7 +13,7 @@ runner = CliRunner()
 def test_cli_help_lists_required_commands():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for name in ("eval", "mcp", "hook", "agentverse", "serve", "context", "replay"):
+    for name in ("eval", "mcp", "hook", "agentverse", "agentverse-ask", "ab", "serve", "context", "replay"):
         assert name in result.stdout
 
 

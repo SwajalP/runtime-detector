@@ -51,6 +51,10 @@ def build_asi_one_protocol(service: LedgerService, pool: ThreadPoolExecutor):
     proto = Protocol(spec=chat_protocol_spec)
     loop_run = lambda fn, *args: asyncio.get_event_loop().run_in_executor(pool, fn, *args)
 
+    @proto.on_message(model=ChatAcknowledgement)
+    async def on_asi_one_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+        return
+
     @proto.on_message(model=ChatMessage)
     async def on_asi_one_chat(ctx: Context, sender: str, msg: ChatMessage):
         await ctx.send(sender, ChatAcknowledgement(acknowledged_msg_id=msg.msg_id))

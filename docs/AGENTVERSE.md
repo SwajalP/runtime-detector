@@ -2,29 +2,46 @@
 
 `ledger/agentverse` wraps the same controller the MCP server uses, so another agent (or ASI:One chat) can ask for a budgeted working set without cloning the repository tools.
 
-## Run locally (no mailbox credentials)
+## Run locally (no account)
 
 ```bash
 source .venv/bin/activate
 pip install -e ".[agentverse]"
-ledger init --repo demo_repo
-ledger agentverse --repo demo_repo --local --port 8000
-# or: python -m ledger.agentverse --repo demo_repo --local
+python -m ledger.agentverse --repo demo_repo --local --port 8000
 ```
 
-The agent binds `http://127.0.0.1:8000/submit` and logs its address on startup.
+The process prints a local demo identity derived from the committed public seed `ledger-runtime-local-demo-v1` (not an API key):
 
-Mailbox / Agentverse registration is opt-in:
+```
+agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq
+```
+
+That address is a **local demo identity, not an Agentverse-registered mailbox**. From another process:
 
 ```bash
-ledger agentverse --repo demo_repo --mailbox
+python -m ledger.agentverse.client --local --port 8000 \
+  "find the code for renewal invoices ignoring loyalty discounts"
+python -m ledger.agentverse.client --local --port 8000 --chat \
+  "find the code for renewal invoices ignoring loyalty discounts"
+# or: ledger agentverse-ask --port 8000 --chat "find the code for renewal invoices ignoring loyalty discounts"
 ```
 
-Published Agentverse address (replace after mailbox registration):
+The reply includes `for_renewal` and `shop/billing/discount_policy.py`. The chat reply also includes a fenced JSON object. Inbound text is data: it is not passed to a shell or `eval`.
 
-```
-agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>
-```
+uAgents may publish protocol manifests and mark the localhost process active when the network is up. That is not mailbox registration.
+
+## Mailbox registration (human steps, not done here)
+
+`--mailbox` registers only when both environment variables are set. If either is missing, the process exits before it registers and does not invent an address.
+
+1. Create an Agentverse API key in the Agentverse UI.
+2. `export AGENTVERSE_API_KEY=...` (do not commit it).
+3. `export AGENT_SEED=...` (a seed you choose for the mailbox identity; keep it private).
+4. `python -m ledger.agentverse --repo demo_repo --mailbox`
+5. The process POSTs that key to the local inspector `/connect` endpoint. If Agentverse rejects it, the log says registration failed.
+6. The ASI:One **Submission Agent** form on the hackathon site is a separate step. This repository does not submit that form.
+
+The placeholder `agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>` is only a reminder that a mailbox address does not exist until step 4 succeeds. Do not paste the local demo address into that form and call it registered.
 
 ## LedgerContextProtocol
 

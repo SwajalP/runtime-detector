@@ -37,6 +37,7 @@ from ledger.agentverse.models import (
     TraceResponse,
 )
 from ledger.config import LedgerConfig
+from ledger.index.lexical import tokenize
 from ledger.runtime import LedgerRuntime
 
 MAX_TEXT = 4000  # hard cap on any inbound free-text field
@@ -65,6 +66,28 @@ def _budget(v: int | None, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return max(MIN_BUDGET, min(MAX_BUDGET, v))
+
+
+def matching_test_file(repo_root: Path, objective: str) -> str | None:
+    """Pick one repo test whose filename shares two or more objective tokens.
+
+    Used to join a program trace before admission. Paths only — never a shell.
+    """
+    tests = repo_root / "tests"
+    if not tests.is_dir():
+        return None
+    tokens = tokenize(objective)
+    best: str | None = None
+    best_n = 0
+    for path in sorted(tests.glob("test_*.py")):
+        parts = [p for p in path.stem.lower().split("_") if p != "test" and len(p) > 2]
+        n = 0
+        for part in parts:
+            if any(part == tok or part in tok or tok in part for tok in tokens):
+                n += 1
+        if n > best_n:
+            best, best_n = f"tests/{path.name}", n
+    return best if best_n >= 2 else None
 
 
 def sanitize_pytest_args(args: list[str] | None, repo_root: Path) -> list[str]:
@@ -211,6 +234,10 @@ class LedgerService:
         sid = self.session_for(requester, req.task_id)
         self.runtime.set_objective(sid, objective)
         self.runtime.sync()
+        if not (req.seed and str(req.seed).strip()):
+            rel = matching_test_file(self.cfg.repo_root, objective)
+            if rel:
+                self._trace_test(sid, rel, req.task_id)
         payload = self.runtime.controller.build_bundle(
             sid,
             objective,
@@ -383,7 +410,29 @@ class LedgerService:
         if isinstance(out, ExplainResponse):
             return f"```\n{out.text}\n```", {"intent": intent, "bundle_id": out.bundle_id}
         text_out = getattr(out, "rendered_text", "") or json.dumps(out.dict(), indent=1)[:3000]
-        return text_out, {"intent": intent, **compact(out)}
+        payload = {"intent": intent, **compact(out)}
+        return _with_json(text_out, payload), payload
+
+    def _trace_test(self, session_id: str, rel: str, task_id: str | None) -> None:
+        from ledger.trace.runner import run_pytest_traced
+
+        args = sanitize_pytest_args(["-q", rel], self.cfg.repo_root)
+        try:
+            run_pytest_traced(
+                self.cfg,
+                session_id,
+                args,
+                conn=self.runtime.conn,
+                collector=self.runtime.collector,
+                controller=self.runtime.controller,
+                task_id=task_id,
+            )
+        except Exception:
+            return
+
+
+def _with_json(text: str, payload: dict) -> str:
+    return text.rstrip() + "\n\n```json\n" + json.dumps(payload, indent=2) + "\n```"
 
 
 # ------------------------------------------------------------------ rendering

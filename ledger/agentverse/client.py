@@ -1,49 +1,111 @@
-"""Example agent-to-agent client for LedgerContextProtocol.
+"""Send one ContextRequest or ChatText to a running ledger-runtime agent.
 
-This is a reference, not a required runtime dependency. It constructs a
-short-lived uAgent that sends one ``ContextRequest`` and prints the reply.
+Local demo (no Agentverse account)::
+
+    python -m ledger.agentverse.client --local --port 8000 \\
+        "find the code for renewal invoices ignoring loyalty discounts"
+
+``--chat`` sends the same sentence as a chat utterance. The reply must
+include ``for_renewal`` and ``shop/billing/discount_policy.py``.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-from pathlib import Path
+import json
+import sys
 
-from uagents import Agent, Context
+from uagents.communication import send_sync_message
+from uagents.resolver import Resolver
 
-from ledger.agentverse.models import ContextBundle, ContextRequest, ErrorResponse
+from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, demo_address
+from ledger.agentverse.models import ChatText, ContextBundle, ContextRequest, ErrorResponse
 
 
-def build_client(target: str, objective: str, seed: str | None = None, port: int = 8001) -> Agent:
-    client = Agent(name="ledger-client", seed="ledger-runtime-client-seed", port=port, mailbox=False)
+class StaticEndpointResolver(Resolver):
+    def __init__(self, address: str, endpoint: str) -> None:
+        self._address = address
+        ep = endpoint.rstrip("/")
+        if not ep.endswith("/submit"):
+            ep += "/submit"
+        self._endpoint = ep
 
-    @client.on_event("startup")
-    async def _ask(ctx: Context):
-        await ctx.send(target, ContextRequest(objective=objective, seed=seed))
+    async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
+        if destination == self._address:
+            return self._address, [self._endpoint]
+        return None, []
 
-    @client.on_message(model=ContextBundle)
-    async def _bundle(ctx: Context, sender: str, msg: ContextBundle):
-        ctx.logger.info("%s", msg.rendered_text or msg.bundle_id)
-        await asyncio.sleep(0.2)
-        raise SystemExit(0)
 
-    @client.on_message(model=ErrorResponse)
-    async def _err(ctx: Context, sender: str, msg: ErrorResponse):
-        ctx.logger.error("%s: %s", msg.error, msg.detail)
-        raise SystemExit(2)
+async def ask(
+    address: str,
+    objective: str,
+    endpoint: str,
+    *,
+    chat: bool = False,
+    seed: str | None = None,
+    timeout: int = 60,
+):
+    message = ChatText(text=objective) if chat else ContextRequest(objective=objective, seed=seed)
+    response_type = ChatText if chat else ContextBundle
+    return await send_sync_message(
+        destination=address,
+        message=message,
+        response_type=response_type,
+        resolver=StaticEndpointResolver(address, endpoint),
+        timeout=timeout,
+    )
 
-    return client
+
+def format_reply(result) -> str:
+    if isinstance(result, ContextBundle):
+        body = result.rendered_text or ""
+        payload = result.dict() if hasattr(result, "dict") else result.model_dump()
+        return body + "\n\n" + json.dumps(payload, indent=2)
+    if isinstance(result, ChatText):
+        return result.text
+    if isinstance(result, ErrorResponse):
+        return f"error: {result.error} {result.detail}".strip()
+    return str(result)
+
+
+def reply_ok(text: str) -> bool:
+    return "for_renewal" in text and "shop/billing/discount_policy.py" in text
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description="Send a ContextRequest to a running ledger-runtime agent")
-    p.add_argument("address", help="Target agent address")
-    p.add_argument("objective", help="What you are trying to find or fix")
-    p.add_argument("--seed", default=None)
-    p.add_argument("--port", type=int, default=8001)
+    p = argparse.ArgumentParser(description="Send a context or chat request to a running ledger-runtime agent")
+    p.add_argument("address", nargs="?", help="Target agent address (optional with --local)")
+    p.add_argument("objective", nargs="?", help="What you are trying to find or fix")
+    p.add_argument("--local", action="store_true", help=f"Use the committed demo seed ({DEMO_AGENT_SEED})")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--endpoint", default=None, help="Override the /submit URL")
+    p.add_argument("--chat", action="store_true", help="Send ChatText instead of ContextRequest")
+    p.add_argument("--seed", default=None, help="Optional symbol/test seed on a ContextRequest")
+    p.add_argument("--timeout", type=int, default=60)
     args = p.parse_args(argv)
-    build_client(args.address, args.objective, seed=args.seed, port=args.port).run()
+
+    objective = args.objective
+    address = args.address
+    if args.local:
+        address = demo_address()
+        if objective is None and args.address and not str(args.address).startswith("agent"):
+            objective = args.address
+        elif objective is None:
+            objective = args.address
+    if not address or not objective:
+        p.error("need an objective, and an address or --local")
+    endpoint = args.endpoint or f"http://127.0.0.1:{args.port}/submit"
+    print(f"{LOCAL_IDENTITY_LABEL}: {address}", flush=True)
+    result = asyncio.run(
+        ask(address, objective, endpoint, chat=args.chat, seed=args.seed, timeout=args.timeout)
+    )
+    text = format_reply(result)
+    sys.stdout.write(text)
+    if not text.endswith("\n"):
+        sys.stdout.write("\n")
+    if not reply_ok(text):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

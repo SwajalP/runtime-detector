@@ -35,7 +35,18 @@ Median time-to-target is worse (+11.5%). That clock includes the coverage-traced
 | held-out-proration | repeated | ✓ | ✓ | 15 | 5 | 4,602 | 1,297 | −71.8% |
 | held-out-dunning | bug | ✓ | ✓ | 17 | 5 | 5,908 | 1,416 | −76.0% |
 
-Re-run `ledger eval --repo demo_repo --all` and replace this table if the code or tasks change. Do not invent metrics.
+Re-run `ledger eval --repo demo_repo --all` and replace this table if the code or tasks change. Do not invent metrics. The 12-task table above is the last recorded suite eval (2026-10-04). It was not re-run in the hook-A/B session.
+
+## Hook A/B (no Claude login)
+
+`ledger ab --task renewal-discount --repo demo_repo` drives the Claude hook and MCP schema itself. Baseline is observe-only (raw grep/read, no advice). LEDGER advises and calls `ledger_context` / `ledger_search`. Measured 2026-10-04:
+
+| Condition | Target found | Advice | Repo calls | Ledger calls | Repo tokens |
+|---|---|---:|---:|---:|---:|
+| Baseline (observe-only) | yes | 0 | 20 | 0 | 9,103 |
+| LEDGER | yes | 1 | 4 | 3 | 4,740 |
+
+`claude -p` was probed and did not run: `Invalid API key · Please run /login`. That fact is stored on the report as `claude.ran: false`. Hook numbers are not labeled as a live Claude result.
 
 ## Quick start
 
@@ -56,6 +67,13 @@ ledger eval --repo demo_repo --task renewal-discount
 ledger eval --repo demo_repo --all
 ```
 
+Hook-schema A/B (no Claude login; same hooks the Claude adapter uses):
+
+```bash
+ledger ab --task renewal-discount --repo demo_repo
+# or: ./scripts/run_claude_ab.sh
+```
+
 Claude Code (primary adapter):
 
 ```bash
@@ -72,7 +90,15 @@ python -m ledger.agentverse --help
 ledger agentverse --repo demo_repo --local --port 8000
 ```
 
-ASI:One uses the official `AgentChatProtocol` handler in `ledger/agentverse/asi_one.py`. Published address placeholder (replace after `ledger agentverse --mailbox`): `agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>`. See `docs/AGENTVERSE.md`.
+ASI:One uses the official `AgentChatProtocol` handler in `ledger/agentverse/asi_one.py`. Local demo identity (seed `ledger-runtime-local-demo-v1`, not an Agentverse-registered mailbox): `agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
+
+```bash
+python -m ledger.agentverse --repo demo_repo --local --port 8000
+python -m ledger.agentverse.client --local --port 8000 \
+  "find the code for renewal invoices ignoring loyalty discounts"
+```
+
+Mailbox registration needs `AGENTVERSE_API_KEY` and `AGENT_SEED` and errors when they are absent. The ASI:One submission form was not submitted. See `docs/AGENTVERSE.md`.
 
 `ledger init` writes Claude Code **PreToolUse / PostToolUse / SessionStart** hooks and an MCP server (`.mcp.json`) exposing:
 
@@ -87,6 +113,10 @@ The agent keeps Grep, Read, Bash, and Edit. LEDGER annotates repeated broad sear
 Task success is reported before efficiency. Primary cost metrics: repository tool calls, repository tokens returned, time to first target region, cache hit/miss, prefetch, eviction, and invalidation (stale-serve target is zero).
 
 Judge copy: 50- and 150-word blurbs in `docs/TRACKS.md`. Three-minute script: `docs/DEMO.md`. Venue Wi-Fi failure: `./scripts/reset_demo.sh --replay` (labelled REPLAY, not live Claude).
+
+## Honest limits
+
+Simulated 12-task eval, not a live Claude A/B and not SWE-bench. Most tasks score whether the target file was seen. One repeat, no confidence interval. Median time-to-target on that eval is worse (+11.5%, 0.468 s → 0.522 s) because LEDGER runs coverage-traced pytest first; calls-to-target is the fairer localization metric (1.0 vs 2.167). Suite prefetch precision on that eval is 0.5 (6 issued, 3 used). The hook A/B above is a separate measurement. Stale-serve 0 is the hash-before-serve invariant, not a large-N proof. Tracing is Python + pytest/coverage. Tree-sitter is syntax. This is not a model KV cache and not “grep is slow.” Retrieval is not claimed as new (Aider, CodeGrep, CodeNib); the contribution is the online dual-trace controller. Policy weights are constants. One demo repo; lexical traps are intentional. Vite `dashboard/dist` is optional and gitignored. Full write-up: `docs/LIMITATIONS.md`.
 
 ## Layout
 

@@ -12,9 +12,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from uagents import Agent, Context, Protocol
+from uagents_core.registration import AgentRegistrationPolicy
 
 from ledger.agentverse import AGENT_NAME, PROTOCOL_NAME, PROTOCOL_VERSION
 from ledger.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
+from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, require_mailbox_credentials
 from ledger.agentverse.models import (
     ChatText,
     ContextBundle,
@@ -64,6 +66,13 @@ def build_protocol(service: LedgerService, pool: ThreadPoolExecutor) -> Protocol
     return proto
 
 
+class LocalDemoRegistration(AgentRegistrationPolicy):
+    """Skip Almanac registration. The process still serves ``/submit`` on localhost."""
+
+    async def register(self, agent_identifier, identity, protocols, endpoints, metadata=None):
+        return None
+
+
 def build_agent(
     repo: Path | str | None = None,
     *,
@@ -71,17 +80,24 @@ def build_agent(
     port: int = 8000,
     seed: str | None = None,
     runtime=None,
+    mailbox_api_key: str | None = None,
 ) -> Agent:
     service = LedgerService(repo=repo, runtime=runtime)
     service.ensure_index()
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ledger-svc")
     agent = Agent(
         name=AGENT_NAME,
-        seed=seed or "ledger-runtime-local-seed",
+        seed=seed or DEMO_AGENT_SEED,
         port=port,
         mailbox=not local,
         endpoint=f"http://127.0.0.1:{port}/submit" if local else None,
         version=PROTOCOL_VERSION,
+        registration_policy=LocalDemoRegistration() if local else None,
+        report_events=not local,
         description=(
             "Budgeted, explainable repository context for coding agents. "
             "Ask for a context bundle, a search, a pytest trace, or metrics."
@@ -101,7 +117,33 @@ def build_agent(
             local,
             ASI_ONE_CHAT_AVAILABLE,
         )
-        ctx.logger.info("Agentverse address placeholder: %s", AGENTVERSE_ADDRESS_PLACEHOLDER)
+        if local:
+            ctx.logger.info("%s: %s", LOCAL_IDENTITY_LABEL, agent.address)
+        else:
+            ctx.logger.info("Agentverse address placeholder until registration succeeds: %s", AGENTVERSE_ADDRESS_PLACEHOLDER)
+
+    if mailbox_api_key and not local:
+
+        @agent.on_event("startup")
+        async def _mailbox_connect(ctx: Context):
+            import aiohttp
+
+            url = f"http://127.0.0.1:{port}/connect"
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        url,
+                        json={"user_token": mailbox_api_key, "agent_type": "mailbox"},
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
+                        body = await resp.text()
+                        ctx.logger.info("mailbox connect HTTP %s: %s", resp.status, body[:400])
+                        if resp.status != 200:
+                            ctx.logger.error(
+                                "Mailbox registration did not succeed. ASI:One submission was not completed."
+                            )
+            except Exception as exc:
+                ctx.logger.error("Mailbox registration failed: %s. ASI:One submission was not completed.", exc)
 
     return agent
 
@@ -113,7 +155,25 @@ def run_agent(
     port: int = 8000,
     seed: str | None = None,
 ) -> None:
-    agent = build_agent(repo, local=local, port=port, seed=seed)
+    mailbox_api_key = None
+    if local:
+        seed = seed or DEMO_AGENT_SEED
+    else:
+        mailbox_api_key, env_seed = require_mailbox_credentials()
+        seed = seed or env_seed
+    agent = build_agent(repo, local=local, port=port, seed=seed, mailbox_api_key=mailbox_api_key)
+    if local:
+        print(f"{LOCAL_IDENTITY_LABEL}: {agent.address}", flush=True)
+        print(f"endpoint: http://127.0.0.1:{port}/submit", flush=True)
+        label = "public demo constant, not an API key" if seed == DEMO_AGENT_SEED else "seed override"
+        print(f"seed: {seed} ({label})", flush=True)
+    else:
+        print(
+            "Mailbox mode: registering with AGENTVERSE_API_KEY. "
+            "This does not mean the ASI:One submission form was submitted.",
+            flush=True,
+        )
+        print(f"identity from AGENT_SEED: {agent.address}", flush=True)
     agent.run()
 
 
@@ -139,4 +199,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.mailbox:
+        require_mailbox_credentials()
     run_agent(repo=args.repo, local=not args.mailbox, port=args.port, seed=args.seed)

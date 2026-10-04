@@ -1,9 +1,14 @@
 import subprocess
 import sys
 
+import pytest
+
 from ledger.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
+from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, demo_address, require_mailbox_credentials
 from ledger.agentverse.models import ContextRequest
 from ledger.agentverse.service import Intent, LedgerService, parse_intent
+
+CHAT_UTTERANCE = "find the code for renewal invoices ignoring loyalty discounts"
 
 
 def test_parse_intent_routes():
@@ -48,6 +53,34 @@ def test_asi_one_handler_is_documented_and_wired():
         assert proto.name == "AgentChatProtocol"
     else:
         assert build_asi_one_protocol(None, None) is None
+
+
+def test_demo_address_is_stable_and_labeled():
+    address = demo_address()
+    assert address.startswith("agent1")
+    assert demo_address() == demo_address(DEMO_AGENT_SEED)
+    assert "not an Agentverse-registered mailbox" in LOCAL_IDENTITY_LABEL
+
+
+def test_mailbox_missing_key_errors(monkeypatch):
+    monkeypatch.delenv("AGENTVERSE_API_KEY", raising=False)
+    monkeypatch.delenv("AGENT_SEED", raising=False)
+    with pytest.raises(SystemExit) as exc:
+        require_mailbox_credentials()
+    assert "AGENTVERSE_API_KEY" in str(exc.value)
+    assert "not submitted" in str(exc.value).lower() or "was not submitted" in str(exc.value)
+
+
+def test_chat_utterance_returns_for_renewal_and_json(demo_rt):
+    svc = LedgerService(runtime=demo_rt)
+    text, payload = svc.handle_chat_text(CHAT_UTTERANCE, requester="agent1qlocaldemo")
+    assert "for_renewal" in text
+    assert "shop/billing/discount_policy.py" in text
+    assert "```json" in text
+    symbols = [e.get("symbol") for e in payload.get("entries", [])]
+    paths = [e.get("path") for e in payload.get("entries", [])]
+    assert "for_renewal" in symbols
+    assert "shop/billing/discount_policy.py" in paths
 
 
 def test_agentverse_module_help():
