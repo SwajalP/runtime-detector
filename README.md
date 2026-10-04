@@ -82,12 +82,18 @@ ledger run --agent claude --repo demo_repo
 claude
 ```
 
-Fetch.ai uAgent (optional extra):
+Fetch.ai uAgent (local demo, no mailbox key):
 
 ```bash
 pip install -e ".[agentverse]"
-python -m ledger.agentverse --help
-ledger agentverse --repo demo_repo --local --port 8000
+ledger agentverse-demo --repo demo_repo
+```
+
+Local medallion lake (no Databricks account; see `docs/LAKE.md`):
+
+```bash
+ledger lake build --repo demo_repo
+ledger lake show --repo demo_repo
 ```
 
 ASI:One uses the official `AgentChatProtocol` handler in `ledger/agentverse/asi_one.py`. Local demo identity (seed `ledger-runtime-local-demo-v1`, not an Agentverse-registered mailbox): `agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
@@ -98,7 +104,7 @@ python -m ledger.agentverse.client --local --port 8000 \
   "find the code for renewal invoices ignoring loyalty discounts"
 ```
 
-Mailbox registration needs `AGENTVERSE_API_KEY` and `AGENT_SEED` and errors when they are absent. The ASI:One submission form was not submitted. See `docs/AGENTVERSE.md`.
+Mailbox registration needs `AGENTVERSE_API_KEY` and `AGENT_SEED`. If either is missing, `ledger agentverse --mailbox` and `ledger agentverse-demo` fall back to local mode and do not crash. The ASI:One submission form was not submitted. See `docs/AGENTVERSE.md`.
 
 `ledger init` writes Claude Code **PreToolUse / PostToolUse / SessionStart** hooks and an MCP server (`.mcp.json`) exposing:
 
@@ -121,7 +127,7 @@ Simulated 12-task eval, not a live Claude A/B and not SWE-bench. Most tasks scor
 ## Layout
 
 ```
-ledger/           controller, index, traces, MCP, Claude hooks, Agentverse, eval
+ledger/           controller, index, traces, MCP, Claude hooks, Agentverse, lake, eval
 dashboard/        React + Vite UI (optional; serve prefers dist/ if built, else dashboard.html)
 demo_repo/        layered billing shop with a deterministic renewal-discount bug
 docs/             architecture, Agentverse, prize tracks, 3-minute demo

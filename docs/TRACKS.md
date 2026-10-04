@@ -34,28 +34,51 @@ worse because LEDGER traces pytest first; calls-to-target is 1.0 vs
 
 A complete, judge-runnable system: index a real (if small) repository, join
 agent search with pytest execution coverage, serve a budgeted working set,
-and show the decisions on a live dashboard. Evaluation is A/B against a
-fixed simulated agent — same task, same repo, same tests. Three-minute
-script: `docs/DEMO.md`. Offline fallback: `scripts/reset_demo.sh --replay`
-(labelled REPLAY, not live Claude).
+and show the decisions on a live dashboard. The same event log is a local
+medallion lake (`ledger lake build`: bronze events, silver region
+observations, gold working set / bundle / audit / A/B metrics). That lake
+is files on disk. It is not a Databricks benchmark and it does not call
+Databricks. Evaluation is A/B against a fixed simulated agent — same task,
+same repo, same tests. Three-minute script: `docs/DEMO.md`. Offline
+fallback: `scripts/reset_demo.sh --replay` (labelled REPLAY, not live Claude).
 
 ## Actually Intelligent
 
 The intelligence is not a new model. It is an online controller: admit /
 prefetch / evict / invalidate over source regions, with deterministic
-explanations and a freshness guard (content-hash before serve). The claim
-is that context *control* is the missing systems layer, not another prompt.
+explanations and a freshness guard (content-hash before serve). Gold metrics
+keep the structural audit next to the A/B rows: Tarjan SCCs, reverse BFS
+from `for_renewal` to the failing test, and the Stoer–Wagner partition.
+The claim is that context *control* is the missing systems layer, not
+another prompt.
 
 ## Fetch.ai ASI:One Agent Challenge
 
-`ledger/agentverse` exposes the same controller as a uAgent:
+The agent takes a coding-task intent and returns a budgeted context bundle.
+That bundle is the action: which source regions to read, under a token
+budget, with a reason for each. It speaks ASI:One Chat Protocol
+(`AgentChatProtocol` when installed, `ChatText` otherwise) plus the
+structured `LedgerContextProtocol`, and another agent can call it.
 
-- structured `LedgerContextProtocol` (context / search / explain / trace / metrics)
-- official ASI:One `AgentChatProtocol` (`ledger/agentverse/asi_one.py`) when `uagents_core.contrib.protocols.chat` is installed
-- keyword-routed `ChatText` fallback for the same intents
-- `python -m ledger.agentverse --help` / `--repo demo_repo --local`
-- published address placeholder: `agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>`
-- example client: `python -m ledger.agentverse.client <address> "<objective>"`
+```bash
+source .venv/bin/activate
+ledger agentverse-demo --repo demo_repo
+```
 
-Run locally without mailbox credentials. Mailbox mode is opt-in (`--mailbox`)
-and was not registered in this slice. See `docs/AGENTVERSE.md`.
+Missing `AGENTVERSE_API_KEY` falls back to the local uAgent and says so.
+The local demo address (seed `ledger-runtime-local-demo-v1`, not a
+registered mailbox) is
+`agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
+The command writes `demo_repo/.ledger/agentverse_demo.json` with
+`fixture: false`. The ASI:One prize form was not submitted.
+
+Human steps still required:
+
+1. Create an Agentverse API key in the Agentverse UI. Do not commit it.
+2. Choose a private `AGENT_SEED`. Do not commit it.
+3. `export AGENTVERSE_API_KEY=...` and `export AGENT_SEED=...`
+4. `python -m ledger.agentverse --repo demo_repo --mailbox`
+5. Confirm the log shows a successful mailbox connect. That address comes from `AGENT_SEED`. Do not submit the local demo address as a registered mailbox.
+6. Submit the hackathon ASI:One Submission Agent form yourself.
+
+See `docs/AGENTVERSE.md` and `ledger/agentverse/README.md`.

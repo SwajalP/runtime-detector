@@ -329,6 +329,24 @@ def agentverse(
     run_agent(repo=repo, local=local, port=port, seed=seed)
 
 
+@app.command("agentverse-demo")
+def agentverse_demo(
+    repo: Optional[Path] = RepoOpt,
+    port: Optional[int] = typer.Option(None, help="Local port. Default: an ephemeral port."),
+):
+    """Local uAgent round-trip for the renewal chat. No Agentverse key required.
+
+    Writes ``.ledger/agentverse_demo.json`` with ``fixture: false``. A missing
+    AGENTVERSE_API_KEY falls back to local mode and does not register a mailbox.
+    """
+    from ledger.agentverse.demo import format_demo, run_agentverse_demo
+
+    report = run_agentverse_demo(_cfg(repo), port=port, roundtrip=True)
+    console.print(format_demo(report))
+    if not report.get("includes_for_renewal"):
+        raise typer.Exit(code=1)
+
+
 @app.command("agentverse-ask")
 def agentverse_ask(
     objective: str = typer.Argument(..., help="Natural-language objective or chat utterance"),
@@ -382,6 +400,30 @@ def gpt_turn_cmd(
 
     payload = gpt_turn(_cfg(repo), objective, seed=seed)
     sys.stdout.write(json.dumps(payload, indent=2) + "\n")
+
+
+lake_app = typer.Typer(
+    help="Local medallion lake (bronze / silver / gold). No Databricks account required.",
+    no_args_is_help=True,
+)
+app.add_typer(lake_app, name="lake")
+
+
+@lake_app.command("build")
+def lake_build(repo: Optional[Path] = RepoOpt):
+    """Materialize bronze, silver, and gold JSONL from the append-only event log."""
+    from ledger.lake.pipeline import build_lake, format_lake_report
+
+    report = build_lake(_cfg(repo))
+    console.print(format_lake_report(report))
+
+
+@lake_app.command("show")
+def lake_show(repo: Optional[Path] = RepoOpt):
+    """Print lake row counts and token/call savings from the latest eval or A/B file."""
+    from ledger.lake.pipeline import format_show
+
+    console.print(format_show(_cfg(repo)))
 
 
 @app.command()

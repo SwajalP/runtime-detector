@@ -4,6 +4,17 @@
 
 ## Run locally (no account)
 
+One command. It starts the local uAgent, sends the renewal-discount chat, prints the local address and a bundle that includes `for_renewal`, and writes `demo_repo/.ledger/agentverse_demo.json` with `fixture: false`.
+
+```bash
+source .venv/bin/activate
+ledger agentverse-demo --repo demo_repo
+```
+
+If `AGENTVERSE_API_KEY` is unset, the command prints `falling back to local mode` and continues. It does not crash, it does not register a mailbox, and it does not submit the ASI:One form.
+
+The two-process form is the same agent:
+
 ```bash
 source .venv/bin/activate
 pip install -e ".[agentverse]"

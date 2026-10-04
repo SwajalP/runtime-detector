@@ -43,6 +43,12 @@ def create_app(runtime: LedgerRuntime | None = None) -> FastAPI:
     def health():
         return {"ok": True, "repo": str(runtime.cfg.repo_root)}
 
+    @app.get("/api/lake")
+    def lake_view():
+        from ledger.lake.pipeline import lake_summary
+
+        return lake_summary(runtime.cfg)
+
     @app.get("/api/audit")
     def audit_view():
         from ledger.audit import load_audit_for_dashboard

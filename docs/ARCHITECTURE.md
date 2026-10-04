@@ -13,8 +13,14 @@ agent ──► hooks / MCP / Agentverse / CLI
          └─ SQLite store       sessions, working_set, bundles, co_access
               │
               ▼
-        FastAPI dashboard     /api/state  /api/graph  /api/graph/hierarchy
+        FastAPI dashboard     /api/state  /api/graph  /api/graph/hierarchy  /api/lake
+              │
+              ▼
+        local medallion lake  bronze events → silver region observations → gold
+                              working set, latest bundle, audit, A/B metrics
 ```
+
+`ledger lake build` reads the SQLite log and writes JSONL under `.ledger/lake/`. That is a local pipeline. It does not call Databricks. The table layout a Databricks job would ingest is `docs/LAKE.md`.
 
 ## Dual trace
 
@@ -39,8 +45,8 @@ Admission is `expected_value(score, tokens)` against `admission_threshold`. Repl
 The same controller is exposed three ways:
 
 - MCP stdio: `ledger_search`, `ledger_context`, `ledger_explain`
-- CLI: `ledger context`, `ledger explain`, `ledger test`, `ledger eval`
-- Fetch.ai uAgent: `LedgerContextProtocol` + keyword-routed chat (`ledger agentverse`)
+- CLI: `ledger context`, `ledger explain`, `ledger test`, `ledger eval`, `ledger lake build`
+- Fetch.ai uAgent: `LedgerContextProtocol` + chat (`ledger agentverse-demo`)
 
 Raw Grep / Read / Bash / Edit stay available. LEDGER annotates repeated broad search; it does not hide the repository.
 

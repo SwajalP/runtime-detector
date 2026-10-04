@@ -198,6 +198,8 @@ class LedgerRuntime:
                 or (bundle or {}).get("replay")
             )
         )
+        from ledger.lake.pipeline import lake_summary
+
         return {
             "session_id": session_id,
             "sessions": sessions,
@@ -212,6 +214,7 @@ class LedgerRuntime:
             "config": self.cfg.to_json(),
             "replay": replay,
             "session_label": (current or {}).get("label"),
+            "lake": lake_summary(self.cfg),
         }
 
 

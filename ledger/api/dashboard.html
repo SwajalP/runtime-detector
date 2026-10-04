@@ -70,6 +70,12 @@
     .audit-col h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
     .audit-col ul, .audit-col ol { margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
     .audit-col li { margin: 4px 0; overflow-wrap: anywhere; }
+    .lake { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: transparent; border: 0; padding: 0; }
+    .lake .metric { border-top: 3px solid var(--line); }
+    .lake .bronze { border-top-color: #cd7f32; }
+    .lake .silver { border-top-color: #c5cdd8; }
+    .lake .gold { border-top-color: var(--warn); }
+    .lake .metric span { display: block; margin-top: 4px; font-size: 12px; }
     @media (max-width: 1100px) {
       .grid { grid-template-columns: 1fr; }
       .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -92,6 +98,7 @@
   </header>
   <div class="grid">
     <div class="card metrics" id="metrics"></div>
+    <div class="card lake" id="lake"></div>
     <div class="card" style="grid-row: span 2">
       <h2>Agent + program timeline</h2>
       <div id="events"></div>
@@ -162,6 +169,7 @@
         ["stale", m.stale_entries ?? 0],
       ];
       $("metrics").innerHTML = cells.map(([k, v]) => `<div class="metric"><label>${esc(k)}</label><b>${esc(v)}</b></div>`).join("");
+      renderLake(state.lake);
       $("events").innerHTML = (state.events || []).slice(-80).reverse().map((e) =>
         `<div class="evt"><span>${esc(e.turn)}</span><span class="op-${esc(e.operation)}">${esc(e.operation)}</span><span>${esc((e.query || e.source || "").toString().slice(0, 88))}</span></div>`
       ).join("");
@@ -271,6 +279,21 @@
       $("hier").innerHTML = stats + `<div class="hier-grid">${cols}</div>`;
     }
 
+    function renderLake(lake) {
+      const el = $("lake");
+      if (!el) return;
+      const src = lake || {};
+      const g = src.gold_detail || {};
+      const cells = [
+        ["bronze", src.bronze ?? 0, "raw events", "bronze"],
+        ["silver", src.silver ?? 0, "region observations", "silver"],
+        ["gold", src.gold ?? 0, `ws ${g.working_set ?? 0} · bundles ${g.bundles ?? 0} · metrics ${g.metrics ?? 0}`, "gold"],
+      ];
+      el.innerHTML = cells.map(([k, v, sub, cls]) =>
+        `<div class="metric ${cls}"><label>medallion ${esc(k)}</label><b>${esc(v)}</b><span class="muted">${esc(sub)}</span></div>`
+      ).join("") + `<p class="muted" style="grid-column:1/-1">backend: ${esc(src.backend || "local-lake")}</p>`;
+    }
+
     function renderAudit(audit) {
       const note = $("audit-note");
       const pre = $("audit");
@@ -318,16 +341,19 @@
     }
 
     async function refresh() {
-      const [state, graph, hier, audit] = await Promise.all([
+      const [state, graph, hier, audit, lake] = await Promise.all([
         (await fetch("/api/state")).json(),
         (await fetch("/api/graph")).json(),
         (await fetch("/api/graph/hierarchy")).json(),
         (await fetch("/api/audit")).json(),
+        fetch("/api/lake").then((r) => r.json()).catch(() => null),
       ]);
+      if (lake) state.lake = lake;
       renderState(state);
       renderGraph(graph);
       renderHier(hier);
       renderAudit(audit);
+      renderLake(state.lake);
     }
     async function boot() {
       await refresh();

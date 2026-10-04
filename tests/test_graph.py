@@ -46,6 +46,14 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     assert "Stoer–Wagner partition" in fallback
     assert "Seed side" in fallback
     assert "Reverse BFS depths" in fallback
+    assert 'id="lake"' in fallback
+    assert "medallion" in fallback
+    lake = client.get("/api/lake").json()
+    assert lake["backend"] == "local-lake"
+    assert lake["databricks_called"] is False
+    assert "bronze" in lake and "silver" in lake and "gold" in lake
+    state = client.get("/api/state").json()
+    assert state["lake"]["backend"] == "local-lake"
     audit = client.get("/api/audit").json()
     assert "large_sccs" in audit
     assert audit.get("fixture") is True or audit.get("kind") == "structural"

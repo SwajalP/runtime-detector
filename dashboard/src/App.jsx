@@ -59,18 +59,21 @@ export default function App() {
   const [hierarchy, setHierarchy] = useState(null);
   const [ab, setAb] = useState("");
   const [audit, setAudit] = useState(null);
+  const [lake, setLake] = useState(null);
 
   async function refresh() {
-    const [s, g, h, a] = await Promise.all([
+    const [s, g, h, a, lakeBody] = await Promise.all([
       fetch("/api/state").then((r) => r.json()),
       fetch("/api/graph").then((r) => r.json()),
       fetch("/api/graph/hierarchy").then((r) => r.json()),
       fetch("/api/audit").then((r) => r.json()).catch(() => null),
+      fetch("/api/lake").then((r) => r.json()).catch(() => null),
     ]);
     setState(s);
     setGraph(g);
     setHierarchy(h);
     setAudit(a);
+    setLake(lakeBody || s.lake || null);
   }
 
   useEffect(() => {
@@ -125,6 +128,20 @@ export default function App() {
         </div>
       </header>
       <div className="grid">
+        <div className="card lake" id="lake">
+          {[
+            ["bronze", lake?.bronze ?? 0, "raw events", "bronze"],
+            ["silver", lake?.silver ?? 0, "region observations", "silver"],
+            ["gold", lake?.gold ?? 0, `ws ${lake?.gold_detail?.working_set ?? 0} · bundles ${lake?.gold_detail?.bundles ?? 0} · metrics ${lake?.gold_detail?.metrics ?? 0}`, "gold"],
+          ].map(([k, v, sub, cls]) => (
+            <div className={"metric " + cls} key={k}>
+              <label>medallion {k}</label>
+              <b>{v}</b>
+              <span className="muted">{sub}</span>
+            </div>
+          ))}
+          <p className="muted" style={{ gridColumn: "1 / -1" }}>backend: {lake?.backend || "local-lake"}</p>
+        </div>
         <div className="card metrics">
           {[
             ["session", (state.session_id || "—").slice(0, 16)],
