@@ -1,0 +1,18 @@
+{
+  "fixture": true,
+  "label": "fixture comparison — not a live SonarQube, Claude, or GPT measurement",
+  "note": "Illustrative rows only. The structural audit fields outside this object are computed from the index.",
+  "rows": [
+    {
+      "name": "ledger structural audit",
+      "what": "SCC, min-cut, clone clusters, lexical traps",
+      "fixture": true
+    },
+    {
+      "name": "example static analyzer",
+      "what": "not measured in this repo",
+      "fixture": true,
+      "score": null
+    }
+  ]
+}

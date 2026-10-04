@@ -43,9 +43,16 @@ def init(repo: Optional[Path] = RepoOpt, no_claude: bool = typer.Option(False, h
 
 @app.command()
 def index(repo: Optional[Path] = RepoOpt, full: bool = typer.Option(False, help="Full rebuild instead of incremental sync")):
-    """Incrementally re-index changed files (or --full)."""
+    """Incrementally re-index changed files (or --full). Prints signature-card sizes from the index."""
+    from ledger.index.cards import format_card_line, measure_cards
+    from ledger.index.parser import TREE_SITTER_AVAILABLE
+
     rt = _rt(repo)
-    console.print(rt.reindex() if full else rt.sync())
+    stats = rt.reindex() if full else rt.sync()
+    cards = measure_cards(rt.conn)
+    backend = "tree-sitter" if TREE_SITTER_AVAILABLE and rt.cfg.parser_backend != "ast" else "ast"
+    console.print(stats)
+    console.print(format_card_line(cards, backend=backend))
 
 
 @app.command()
@@ -343,6 +350,58 @@ def agentverse_ask(
     console.print(text)
     if not reply_ok(text):
         raise typer.Exit(code=1)
+
+
+@app.command()
+def integrate(
+    target: str = typer.Argument(..., help="claude | cline | gpt"),
+    repo: Optional[Path] = RepoOpt,
+):
+    """Write MCP/tool config for Claude Code, Cline, or Codex (GPT)."""
+    from ledger.adapters.integrate import integrate as integrate_target
+
+    try:
+        result = integrate_target(_cfg(repo), target)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data=result)
+
+
+@app.command("gpt-turn")
+def gpt_turn_cmd(
+    objective: str = typer.Option(..., "--objective", help="What the turn should answer"),
+    seed: Optional[str] = typer.Option(None, "--seed", help="Symbol or test seed for the bundle"),
+    repo: Optional[Path] = RepoOpt,
+):
+    """One turn: OpenAI if OPENAI_API_KEY is set, otherwise a local backup.
+
+    LEDGER_DUMMY=1 prints the labeled fixture in ledger/fixtures/gpt_trace.json.
+    Fixtures are never reported as live Claude or GPT measurements.
+    """
+    from ledger.adapters.gpt_turn import gpt_turn
+
+    payload = gpt_turn(_cfg(repo), objective, seed=seed)
+    sys.stdout.write(json.dumps(payload, indent=2) + "\n")
+
+
+@app.command()
+def audit(repo: Optional[Path] = RepoOpt):
+    """Structural audit: SCCs, min-cut, clone clusters, lexical traps. Writes last_audit.json."""
+    from ledger.audit import write_audit
+
+    report = write_audit(_cfg(repo))
+    summary = {
+        "written": report.get("written"),
+        "regions": report.get("regions"),
+        "large_sccs": len(report.get("large_sccs") or []),
+        "largest_scc_size": report.get("largest_scc_size"),
+        "min_cut": report.get("min_cut"),
+        "clone_clusters": len(report.get("clone_clusters") or []),
+        "lexical_traps": len(report.get("lexical_traps") or []),
+        "disclaimer": report.get("disclaimer"),
+        "fixture_comparison_labeled": bool((report.get("fixture_comparison") or {}).get("fixture")),
+    }
+    console.print_json(data=summary)
 
 
 @app.command()

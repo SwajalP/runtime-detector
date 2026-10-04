@@ -22,6 +22,10 @@ demo_repo/**/__pycache__/
 .claude/settings.local.json
 demo_repo/.claude/
 demo_repo/.mcp.json
+demo_repo/.cline/
+demo_repo/.clinerules
+demo_repo/.codex/
+demo_repo/.gpt/
 *.pyc
 .ruff_cache/
 uagents_core.log

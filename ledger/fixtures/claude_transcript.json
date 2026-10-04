@@ -1,0 +1,15 @@
+{
+  "fixture": true,
+  "source": "fixture",
+  "provider": "fixture",
+  "live": false,
+  "label": "FIXTURE Claude transcript — not a live Claude measurement",
+  "note": "Checked-in example. claude.ran was not true for this file.",
+  "transcript": [
+    {"role": "user", "content": "Renewal invoices ignore loyalty discounts."},
+    {
+      "role": "assistant",
+      "content": "Fixture transcript only. Not a live Claude Code session."
+    }
+  ]
+}

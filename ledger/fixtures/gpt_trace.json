@@ -1,0 +1,16 @@
+{
+  "fixture": true,
+  "source": "fixture",
+  "provider": "fixture",
+  "live": false,
+  "model": null,
+  "label": "FIXTURE GPT trace — not a live GPT measurement",
+  "note": "Returned because LEDGER_DUMMY=1. Do not cite this as a live OpenAI or Claude result.",
+  "trace": [
+    {"role": "user", "content": "objective placeholder"},
+    {
+      "role": "assistant",
+      "content": "Fixture trace only. This text is not a model completion."
+    }
+  ]
+}

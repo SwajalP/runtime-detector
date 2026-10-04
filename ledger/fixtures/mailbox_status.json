@@ -1,0 +1,8 @@
+{
+  "fixture": true,
+  "registered": false,
+  "source": "fixture",
+  "label": "FIXTURE mailbox status — not a live Agentverse registration",
+  "address": null,
+  "note": "ASI:One submission was not submitted. No mailbox was registered. Missing AGENTVERSE_API_KEY uses local mode."
+}

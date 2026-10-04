@@ -44,6 +44,7 @@ include = ["ledger*"]
 
 [tool.setuptools.package-data]
 "ledger.api" = ["dashboard.html"]
+"ledger.fixtures" = ["*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
