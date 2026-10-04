@@ -55,6 +55,12 @@ def create_app(runtime: LedgerRuntime | None = None) -> FastAPI:
 
         return load_audit_for_dashboard(runtime.cfg)
 
+    @app.get("/api/debt")
+    def debt_view():
+        from ledger.graphalg.debt import debt_for_runtime
+
+        return debt_for_runtime(runtime)
+
     @app.get("/api/state")
     def state(session_id: str | None = None):
         return runtime.dashboard_state(session_id)

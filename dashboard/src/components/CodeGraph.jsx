@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 
 const LEVEL_COLOR = { L0: "#3ee0b0", L1: "#7aa2ff", L2: "#f5c542", backing: "#8b97a8" };
+const DEBT_COLOR = { choke: "#ff6b6b", tangled: "#f5c542", complex: "#7aa2ff", hub: "#c08bff" };
 const EDGE_COLOR = {
   call: "#7aa2ff",
   exec: "#ff7a45",
@@ -33,8 +34,9 @@ function layout(nodes, width, height) {
   return { pos, packages, colW };
 }
 
-export default function CodeGraph({ graph }) {
+export default function CodeGraph({ graph, highlight }) {
   const [hover, setHover] = useState(null);
+  const marks = highlight || {};
   const width = 920;
   const height = 420;
   const nodes = graph?.nodes || [];
@@ -68,16 +70,17 @@ export default function CodeGraph({ graph }) {
         {nodes.map((n) => {
           const p = pos[n.id];
           if (!p) return null;
-          const r = n.frame || n.pinned ? 8 : n.in_bundle ? 6 : 4;
+          const base = n.frame || n.pinned ? 8 : n.in_bundle ? 6 : 4;
+          const debtKind = marks[n.id];
           return (
             <circle
               key={n.id}
               cx={p.x}
               cy={p.y}
-              r={r}
+              r={debtKind ? base + 2 : base}
               fill={n.stale ? "#ff6b6b" : LEVEL_COLOR[n.level] || "#8b97a8"}
-              stroke={n.joined ? "#fff" : "transparent"}
-              strokeWidth={n.joined ? 1.5 : 0}
+              stroke={debtKind ? DEBT_COLOR[debtKind] || "#f5c542" : n.joined ? "#fff" : "transparent"}
+              strokeWidth={debtKind ? 2.5 : n.joined ? 1.5 : 0}
               onMouseEnter={() => setHover(n)}
               onMouseLeave={() => setHover(null)}
             />
@@ -90,11 +93,17 @@ export default function CodeGraph({ graph }) {
         ))}
         <span><i style={{ background: EDGE_COLOR.exec }} />exec</span>
         <span><i style={{ background: EDGE_COLOR.call }} />call</span>
+        <span><i style={{ background: DEBT_COLOR.tangled }} />debt tangled</span>
+        <span><i style={{ background: DEBT_COLOR.choke }} />debt choke</span>
+        <span><i style={{ background: DEBT_COLOR.complex }} />debt complex</span>
       </div>
       {hover && (
         <div className="graph-tip">
           <strong>{hover.symbol}</strong> {hover.path}:{hover.start_line}-{hover.end_line}
-          <div>{hover.level} · score {hover.score ?? "—"} · {hover.explanation || ""}</div>
+          <div>
+            {hover.level} · score {hover.score ?? "—"} · {hover.explanation || ""}
+            {marks[hover.id] ? ` · debt ${marks[hover.id]} · node ${hover.id}` : ""}
+          </div>
         </div>
       )}
     </div>

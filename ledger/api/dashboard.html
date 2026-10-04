@@ -76,6 +76,16 @@
     .lake .silver { border-top-color: #c5cdd8; }
     .lake .gold { border-top-color: var(--warn); }
     .lake .metric span { display: block; margin-top: 4px; font-size: 12px; }
+    .debt-head { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .debt-head .metric { flex: 1 1 200px; }
+    .debt-formula { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; margin: 6px 0 10px; }
+    .debt-kind { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+    .debt-choke { color: #ff6b6b; }
+    .debt-tangled { color: #f5c542; }
+    .debt-complex { color: #7aa2ff; }
+    .debt-hub { color: #c08bff; }
+    .debt-orphan { color: #8b97a8; }
+    .debt-ids { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; word-break: break-all; }
     @media (max-width: 1100px) {
       .grid { grid-template-columns: 1fr; }
       .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -125,6 +135,9 @@
         <span><i style="background:#8b97a8"></i>backing</span>
         <span><i style="background:#ff7a45"></i>exec edge</span>
         <span><i style="background:#ff6b6b"></i>stale / successor</span>
+        <span><i style="background:#f5c542"></i>debt · tangled</span>
+        <span><i style="background:#ff6b6b"></i>debt · choke</span>
+        <span><i style="background:#7aa2ff"></i>debt · complex</span>
       </div>
       <div id="graph-tip" class="muted"></div>
     </div>
@@ -139,6 +152,11 @@
       <pre id="audit"></pre>
     </div>
     <div class="card wide">
+      <h2>Technical debt · choke / tangled / complex</h2>
+      <p class="muted" id="debt-note"></p>
+      <div id="debt"></div>
+    </div>
+    <div class="card wide">
       <h2>Last A/B</h2>
       <div id="ab-summary" class="muted"></div>
       <pre id="ab"></pre>
@@ -148,6 +166,8 @@
     const $ = (id) => document.getElementById(id);
     const LEVEL = { L0: "#3ee0b0", L1: "#7aa2ff", L2: "#f5c542", backing: "#8b97a8" };
     const EDGE = { call: "#7aa2ff", exec: "#ff7a45", co_access: "#3ee0b0", co_access_history: "#5a6b7d", successor: "#ff6b6b" };
+    const DEBT_COLOR = { choke: "#ff6b6b", tangled: "#f5c542", complex: "#7aa2ff", hub: "#c08bff" };
+    let debtHighlight = {};
 
     function esc(s) {
       return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -240,13 +260,16 @@
         const p = pos[n.id];
         if (!p) continue;
         const c = document.createElementNS(NS, "circle");
+        const debtKind = debtHighlight[n.id];
+        const baseR = n.frame || n.pinned ? 8 : n.in_bundle ? 6 : 4;
         c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
-        c.setAttribute("r", n.frame || n.pinned ? 8 : n.in_bundle ? 6 : 4);
+        c.setAttribute("r", debtKind ? baseR + 2 : baseR);
         c.setAttribute("fill", n.stale ? "#ff6b6b" : (LEVEL[n.level] || "#8b97a8"));
-        c.setAttribute("stroke", n.joined ? "#fff" : "transparent");
-        c.setAttribute("stroke-width", n.joined ? "1.5" : "0");
+        c.setAttribute("stroke", debtKind ? (DEBT_COLOR[debtKind] || "#f5c542") : (n.joined ? "#fff" : "transparent"));
+        c.setAttribute("stroke-width", debtKind ? "2.5" : (n.joined ? "1.5" : "0"));
         c.addEventListener("mouseenter", () => {
-          $("graph-tip").textContent = `${n.symbol}  ${n.path}:${n.start_line}-${n.end_line}  ${n.level}  ${n.explanation || ""}`;
+          const debtNote = debtKind ? `  debt ${debtKind}  node ${n.id}` : "";
+          $("graph-tip").textContent = `${n.symbol}  ${n.path}:${n.start_line}-${n.end_line}  ${n.level}  ${n.explanation || ""}${debtNote}`;
         });
         svg.appendChild(c);
       }
@@ -340,19 +363,78 @@
       pre.textContent = JSON.stringify(audit, null, 2);
     }
 
+    function renderDebt(debt) {
+      const el = $("debt");
+      const note = $("debt-note");
+      if (!el || !note) return;
+      if (!debt || debt.total_debt == null) {
+        note.textContent = "debt analysis unavailable";
+        el.innerHTML = "";
+        return;
+      }
+      note.textContent = debt.disclaimer || "Simulated local analysis of the indexed call graph.";
+      const f = debt.formula || {};
+      const formula = ["tangled_cost", "choke_cost", "complex_cost", "hub_cost", "orphan_cost", "total"]
+        .filter((k) => f[k])
+        .map((k) => `<div><code>${esc(k)}</code> = ${esc(f[k])}</div>`)
+        .join("");
+      const rules = [f.tangled_rule, f.choke_rule, f.complex_bar, f.hub_rule, f.orphan_rule, f.dollar_rate]
+        .filter(Boolean)
+        .map((t) => `<li>${esc(t)}</li>`)
+        .join("");
+      const example = ((debt.worked_example || {}).arithmetic || []).map((line) => `<li>${esc(line)}</li>`).join("") || "<li>—</li>";
+      const exampleIds = ((debt.worked_example || {}).graph_node_ids || []).map(esc).join(", ");
+      const rows = (debt.findings || []).slice(0, 20).map((item) => {
+        const ids = (item.graph_node_ids || []).map(esc).join(", ");
+        const regions = (item.regions || []).map(esc).join("; ");
+        const arith = esc((item.breakdown || {}).arithmetic || "");
+        return `<tr>
+          <td><span class="debt-kind debt-${esc(item.kind)}">${esc(item.kind)}</span></td>
+          <td>${esc(item.name)}<div class="muted">${regions}</div></td>
+          <td>${esc(item.why)}</td>
+          <td><b>${esc(item.cost)}</b><div class="muted">${arith}</div></td>
+          <td class="debt-ids">${ids}</td>
+        </tr>`;
+      }).join("");
+      const extra = (debt.findings || []).length > 20
+        ? `<p class="muted">Showing 20 of ${esc(debt.findings.length)} findings. The total includes every finding.</p>`
+        : "";
+      el.innerHTML = `
+        <div class="debt-head">
+          <div class="metric"><label>total debt</label><b>${esc(debt.total_debt)}</b><span class="muted">debt-tokens</span></div>
+          <div class="metric"><label>dollar equivalent</label><b>$${esc(debt.dollar_equivalent)}</b><span class="muted">${esc(f.dollar_rate || "")}</span></div>
+        </div>
+        <h3>Formula</h3>
+        <div class="debt-formula">${formula}</div>
+        <ul>${rules}</ul>
+        <h3>for_renewal / retry-cycle</h3>
+        <p class="muted">Measured from the indexed call graph. Graph node ids: <span class="debt-ids">${exampleIds || "—"}</span></p>
+        <ol>${example}</ol>
+        <h3>Ranked findings</h3>
+        <p class="muted">Graph node ids are the same ids the code graph renders. Highlighted nodes use these ids.</p>
+        <table>
+          <thead><tr><th>kind</th><th>region</th><th>why</th><th>cost</th><th>graph node id</th></tr></thead>
+          <tbody>${rows || "<tr><td colspan='5'>No findings.</td></tr>"}</tbody>
+        </table>
+        ${extra}`;
+    }
+
     async function refresh() {
-      const [state, graph, hier, audit, lake] = await Promise.all([
+      const [state, graph, hier, audit, lake, debt] = await Promise.all([
         (await fetch("/api/state")).json(),
         (await fetch("/api/graph")).json(),
         (await fetch("/api/graph/hierarchy")).json(),
         (await fetch("/api/audit")).json(),
         fetch("/api/lake").then((r) => r.json()).catch(() => null),
+        fetch("/api/debt").then((r) => r.json()).catch(() => null),
       ]);
       if (lake) state.lake = lake;
+      debtHighlight = (debt && debt.highlight) || {};
       renderState(state);
       renderGraph(graph);
       renderHier(hier);
       renderAudit(audit);
+      renderDebt(debt);
       renderLake(state.lake);
     }
     async function boot() {

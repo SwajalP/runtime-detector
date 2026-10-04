@@ -106,3 +106,15 @@ pre { white-space: pre-wrap; font-size: 12px; color: #c9d4e5; }
 .lake .silver { border-top-color: #c5cdd8; }
 .lake .gold { border-top-color: var(--warn); }
 .lake .metric span { display: block; margin-top: 4px; font-size: 12px; }
+.debt-head { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.debt-head .metric { flex: 1 1 200px; }
+.debt-head .metric span { display: block; margin-top: 4px; font-size: 12px; }
+.debt-formula { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; margin: 6px 0 10px; }
+.debt-kind { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+.debt-choke { color: #ff6b6b; }
+.debt-tangled { color: #f5c542; }
+.debt-complex { color: #7aa2ff; }
+.debt-hub { color: #c08bff; }
+.debt-orphan { color: var(--muted); }
+.debt-ids { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; word-break: break-all; }
+h3 { margin: 12px 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }

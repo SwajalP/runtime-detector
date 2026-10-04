@@ -428,7 +428,7 @@ def lake_show(repo: Optional[Path] = RepoOpt):
 
 @app.command()
 def audit(repo: Optional[Path] = RepoOpt):
-    """Structural audit: SCCs, min-cut, clone clusters, lexical traps. Writes last_audit.json."""
+    """Structural audit plus call-graph debt cost. Writes last_audit.json."""
     from ledger.audit import write_audit
 
     report = write_audit(_cfg(repo))
@@ -444,6 +444,9 @@ def audit(repo: Optional[Path] = RepoOpt):
         "min_cut": report.get("min_cut"),
         "clone_clusters": len(report.get("clone_clusters") or []),
         "lexical_traps": len(report.get("lexical_traps") or []),
+        "debt_total": (report.get("debt") or {}).get("total_debt"),
+        "debt_unit": (report.get("debt") or {}).get("unit"),
+        "debt_findings": len((report.get("debt") or {}).get("findings") or []),
         "disclaimer": report.get("disclaimer"),
         "fixture_comparison_labeled": bool((report.get("fixture_comparison") or {}).get("fixture")),
     }

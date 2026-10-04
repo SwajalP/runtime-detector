@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import CodeGraph from "./components/CodeGraph.jsx";
+import DebtPanel from "./components/DebtPanel.jsx";
 import MemoryHierarchy from "./components/MemoryHierarchy.jsx";
 
 function AuditPanel({ audit }) {
@@ -60,20 +61,23 @@ export default function App() {
   const [ab, setAb] = useState("");
   const [audit, setAudit] = useState(null);
   const [lake, setLake] = useState(null);
+  const [debt, setDebt] = useState(null);
 
   async function refresh() {
-    const [s, g, h, a, lakeBody] = await Promise.all([
+    const [s, g, h, a, lakeBody, debtBody] = await Promise.all([
       fetch("/api/state").then((r) => r.json()),
       fetch("/api/graph").then((r) => r.json()),
       fetch("/api/graph/hierarchy").then((r) => r.json()),
       fetch("/api/audit").then((r) => r.json()).catch(() => null),
       fetch("/api/lake").then((r) => r.json()).catch(() => null),
+      fetch("/api/debt").then((r) => r.json()).catch(() => null),
     ]);
     setState(s);
     setGraph(g);
     setHierarchy(h);
     setAudit(a);
     setLake(lakeBody || s.lake || null);
+    setDebt(debtBody);
   }
 
   useEffect(() => {
@@ -215,7 +219,7 @@ export default function App() {
         </div>
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Code knowledge graph</h2>
-          <CodeGraph graph={graph} />
+          <CodeGraph graph={graph} highlight={debt?.highlight} />
         </div>
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Memory hierarchy · L0 / L1 / L2 / backing</h2>
@@ -224,6 +228,10 @@ export default function App() {
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Structural audit · SCC / min-cut / clones</h2>
           <AuditPanel audit={audit} />
+        </div>
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Technical debt · choke / tangled / complex</h2>
+          <DebtPanel debt={debt} />
         </div>
         <div className="card compare">
           <h2>Last A/B</h2>

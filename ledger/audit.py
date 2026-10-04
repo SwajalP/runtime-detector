@@ -25,6 +25,7 @@ from ledger.graphalg.apply import (
     symbol_neighborhood,
     undirected_component,
 )
+from ledger.graphalg.debt import debt_from_conn
 from ledger.runtime import LedgerRuntime
 
 _COMMENT = re.compile(r"#.*")
@@ -200,6 +201,7 @@ def build_audit(cfg: LedgerConfig) -> dict:
         "largest_scc_size": max((len(comp) for comp in sccs), default=0),
         "large_sccs": _large_sccs(rt.conn, graph),
         "min_cut": _min_cut_around_failing(rt.conn, graph),
+        "debt": debt_from_conn(rt.conn),
         "clone_clusters": _clone_clusters(rt.conn),
         "lexical_traps": _lexical_traps(rt.conn),
         "fixture_comparison": comparison,
