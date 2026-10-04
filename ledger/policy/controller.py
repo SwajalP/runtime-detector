@@ -194,6 +194,9 @@ class ContextController:
                 }
             )
         entries, used = fit_budget(entries, budget)
+        from ledger.graphalg.apply import annotate_entries
+
+        graph_report = annotate_entries(self.conn, entries, seed=seed, objective=objective)
 
         for e in entries:
             self.conn.execute(
@@ -227,6 +230,7 @@ class ContextController:
             "stale_blocked": [{"region_id": r["region_id"], "symbol": r.get("symbol"), "path": r["path"]} for r in blocked],
             "prefetch": prefetch,
             "weights": self.cfg.weights,
+            "graph": graph_report,
             "created_ms": now_ms(),
         }
         self.conn.execute(
@@ -257,11 +261,26 @@ class ContextController:
             return {"error": "unknown bundle", "bundle_id": bundle_id}
         payload = json.loads(row["payload_json"])
         lines = [f"Bundle {bundle_id} · objective: {payload['objective']} · {payload['token_count']}/{payload['budget']} tokens"]
+        graph = payload.get("graph") or {}
+        if graph.get("algorithms"):
+            lines.append("graph algorithms: " + ", ".join(graph["algorithms"]))
+            if graph.get("seed_symbol"):
+                cut = (graph.get("min_cut") or {}).get("weight")
+                scc = (graph.get("tarjan") or {}).get("seed_scc_size")
+                n_bfs = len((graph.get("reverse_bfs") or {}).get("neighborhood") or [])
+                lines.append(
+                    f"   seed {graph.get('seed_path')}::{graph.get('seed_symbol')} "
+                    f"reverse_bfs={n_bfs} min_cut={cut} tarjan_scc={scc}"
+                )
         for i, e in enumerate(payload["entries"], 1):
             parts = ", ".join(f"{k}={v:+.3f}" for k, v in e["parts"].items() if abs(v) > 0.0005)
-            lines.append(f"{i}. {e['symbol']} ({e['path']}:{e['start_line']}-{e['end_line']}) score={e['score']} level={e['level']}")
+            tags = e.get("graph_tags") or []
+            tag_s = f" graph={','.join(tags)}" if tags else ""
+            lines.append(f"{i}. {e['symbol']} ({e['path']}:{e['start_line']}-{e['end_line']}) score={e['score']} level={e['level']}{tag_s}")
             lines.append(f"   why: {e['why']}")
             lines.append(f"   admit: {e['admit']} · parts: {parts}")
+            if tags:
+                lines.append("   graph: " + ", ".join(tags))
         if payload.get("rejected"):
             lines.append("Rejected (top):")
             for r in payload["rejected"][:5]:
