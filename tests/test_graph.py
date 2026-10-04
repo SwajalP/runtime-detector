@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from ledger.api.app import create_app
+from ledger.api.app import DASHBOARD_HTML, create_app
 from ledger.api.graph import graph_payload, hierarchy_payload
 
 
@@ -29,6 +29,14 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     assert "L1" in h["levels"]
     html = client.get("/").text
     assert "LEDGER" in html
-    assert "/api/graph" in html
-    assert "Memory hierarchy" in html
-    assert "Code knowledge graph" in html
+    # Serve prefers dashboard/dist/index.html when a Vite build exists;
+    # otherwise the self-contained dashboard.html fallback.
+    if "/assets/" in html:
+        assert 'id="root"' in html
+    else:
+        assert "/api/graph" in html
+        assert "Memory hierarchy" in html
+        assert "Code knowledge graph" in html
+    fallback = (DASHBOARD_HTML).read_text(encoding="utf-8")
+    assert "Code knowledge graph" in fallback
+    assert "Memory hierarchy" in fallback

@@ -6,30 +6,34 @@ This is a **logical context cache** for source regions, not a model provider’s
 
 Same model. Same task. Same repository.
 
-Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 12.3 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
+Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 12.7 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
+
+**Headline: equal success, far fewer repository calls and tokens.** 12/12 both conditions. Repo search/read calls −95.8% (191 → 8). Repo tokens including LEDGER-injected context −72.4% (84,396 → 23,269).
 
 | Condition | Success | Repo search/read calls | Total tool calls (incl. LEDGER) | Repo tokens (incl. injected) | Median time to target | Mean calls to target |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 12/12 | 191 | 191 | 84,396 | 0.383 s | 2.167 |
-| LEDGER | 12/12 | 9 | 65 | 22,960 | 0.411 s | 1.0 |
-| Change | equal | −95.3% | −66.0% | −72.8% | +7.3% | −53.9% |
+| Baseline | 12/12 | 191 | 191 | 84,396 | 0.389 s | 2.167 |
+| LEDGER | 12/12 | 8 | 64 | 23,269 | 0.436 s | 1.0 |
+| Change | equal | −95.8% | −66.5% | −72.4% | +12.1% | −53.9% |
 
-Controller on this run: cache hit rate 0.889 · prefetch precision *n/a* (0 prefetches used) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
+Controller on this run: cache hit rate 0.909 · prefetch precision 0.033 (30 prefetches, 1 later used — all on the renewal-discount family; held-out tasks issued 0) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
+
+Median time-to-target is worse (+12.1%). That clock includes the coverage-traced pytest LEDGER runs first so the program trace can join the agent trace; baseline’s pytest is untraced and cheaper. Calls-to-target is better (1.0 vs 2.167): the target region is already in the first bundle. Do not read the time delta as a localization regression.
 
 | Task | Family | Base ✓ | LEDGER ✓ | Base calls | LEDGER calls | Base tokens | LEDGER tokens | Δ tokens |
 |---|---|:-:|:-:|---:|---:|---:|---:|---:|
-| renewal-discount | bug | ✓ | ✓ | 20 | 7 | 11,163 | 2,553 | −77.1% |
-| calculate-total | cross-layer | ✓ | ✓ | 18 | 6 | 7,465 | 2,093 | −72.0% |
-| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,706 | 1,600 | −76.1% |
-| renewal-controller | cross-layer | ✓ | ✓ | 10 | 4 | 4,703 | 1,710 | −63.6% |
-| failing-test | bug | ✓ | ✓ | 20 | 7 | 9,995 | 2,373 | −76.3% |
-| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,301 | 2,353 | −74.7% |
-| tax-adapter | cross-layer | ✓ | ✓ | 12 | 5 | 3,674 | 1,857 | −49.5% |
-| schema-invoice | cross-layer | ✓ | ✓ | 16 | 4 | 7,672 | 1,369 | −82.2% |
-| repeat-loyalty-lookup | repeated | ✓ | ✓ | 18 | 6 | 8,376 | 2,118 | −74.7% |
-| webhook-renewal | cross-layer | ✓ | ✓ | 13 | 5 | 4,831 | 2,067 | −57.2% |
+| renewal-discount | bug | ✓ | ✓ | 20 | 7 | 11,163 | 2,495 | −77.6% |
+| calculate-total | cross-layer | ✓ | ✓ | 18 | 6 | 7,465 | 2,147 | −71.2% |
+| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,706 | 1,633 | −75.6% |
+| renewal-controller | cross-layer | ✓ | ✓ | 10 | 4 | 4,703 | 1,761 | −62.6% |
+| failing-test | bug | ✓ | ✓ | 20 | 7 | 9,995 | 2,470 | −75.3% |
+| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,301 | 2,422 | −74.0% |
+| tax-adapter | cross-layer | ✓ | ✓ | 12 | 5 | 3,674 | 1,879 | −48.9% |
+| schema-invoice | cross-layer | ✓ | ✓ | 16 | 4 | 7,672 | 1,452 | −81.1% |
+| repeat-loyalty-lookup | repeated | ✓ | ✓ | 18 | 6 | 8,376 | 2,150 | −74.3% |
+| webhook-renewal | cross-layer | ✓ | ✓ | 13 | 5 | 4,831 | 2,147 | −55.6% |
 | held-out-proration | repeated | ✓ | ✓ | 15 | 5 | 4,602 | 1,297 | −71.8% |
-| held-out-dunning | bug | ✓ | ✓ | 17 | 6 | 5,908 | 1,570 | −73.4% |
+| held-out-dunning | bug | ✓ | ✓ | 17 | 5 | 5,908 | 1,416 | −76.0% |
 
 Re-run `ledger eval --repo demo_repo --all` and replace this table if the code or tasks change. Do not invent metrics.
 
@@ -86,7 +90,7 @@ Task success is reported before efficiency. Primary cost metrics: repository too
 
 ```
 ledger/           controller, index, traces, MCP, Claude hooks, Agentverse, eval
-dashboard/        React + Vite UI (optional; FastAPI serves dashboard.html)
+dashboard/        React + Vite UI (optional; serve prefers dist/ if built, else dashboard.html)
 demo_repo/        layered billing shop with a deterministic renewal-discount bug
 docs/             architecture, Agentverse, prize tracks
 scripts/          reset + baseline/LEDGER runners
