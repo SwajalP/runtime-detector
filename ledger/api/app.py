@@ -103,12 +103,15 @@ def create_app(runtime: LedgerRuntime | None = None) -> FastAPI:
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
-    if DASHBOARD_DIST.is_dir():
-        app.mount("/assets", StaticFiles(directory=DASHBOARD_DIST / "assets"), name="assets")
+    dist_index = DASHBOARD_DIST / "index.html"
+    if dist_index.is_file():
+        assets = DASHBOARD_DIST / "assets"
+        if assets.is_dir():
+            app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
         @app.get("/")
         def index():
-            return FileResponse(DASHBOARD_DIST / "index.html")
+            return FileResponse(dist_index)
     else:
 
         @app.get("/")
