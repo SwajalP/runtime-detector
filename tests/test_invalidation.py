@@ -1,4 +1,4 @@
-from ledger.policy.invalidation import invalidate_path
+from traceweaver.policy.invalidation import invalidate_path
 
 
 def test_edit_invalidates_hash(demo_rt):

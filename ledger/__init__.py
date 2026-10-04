@@ -1,3 +1,0 @@
-"""LEDGER Runtime — online context control for coding agents."""
-
-__version__ = "0.1.0"

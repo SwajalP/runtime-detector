@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "runtime-detector"
 version = "0.1.0"
-description = "LEDGER Runtime: a semantic memory hierarchy for coding agents"
+description = "TraceWeaver Runtime: a semantic memory hierarchy for coding agents"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Swajal Padhi" }]
@@ -34,17 +34,14 @@ dev = [
 ]
 
 [project.scripts]
-ledger = "ledger.cli:app"
-
-[project.entry-points.pytest11]
-ledger = "ledger.trace.pytest_plugin"
+traceweaver = "traceweaver.cli:app"
 
 [tool.setuptools.packages.find]
-include = ["ledger*"]
+include = ["traceweaver*"]
 
 [tool.setuptools.package-data]
-"ledger.api" = ["dashboard.html"]
-"ledger.fixtures" = ["*.json"]
+"traceweaver.api" = ["dashboard.html"]
+"traceweaver.fixtures" = ["*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

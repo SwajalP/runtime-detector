@@ -1,5 +1,5 @@
-from ledger.mcp.tools import render_bundle_text
-from ledger.trace.runner import run_pytest_traced
+from traceweaver.mcp.tools import render_bundle_text
+from traceweaver.trace.runner import run_pytest_traced
 
 
 def test_index_exec_bundle_smoke(demo_rt):
@@ -8,7 +8,7 @@ def test_index_exec_bundle_smoke(demo_rt):
     ).fetchall()
     assert any("discount_policy.py" in r["path"] for r in rows)
 
-    sid = demo_rt.new_session(agent="test", condition="ledger", task_id="renewal-discount")
+    sid = demo_rt.new_session(agent="test", condition="traceweaver", task_id="renewal-discount")
     traced = run_pytest_traced(
         demo_rt.cfg,
         sid,
@@ -37,7 +37,7 @@ def test_index_exec_bundle_smoke(demo_rt):
 def test_cli_lists_mcp_and_agentverse():
     from typer.testing import CliRunner
 
-    from ledger.cli import app
+    from traceweaver.cli import app
 
     result = CliRunner().invoke(app, ["--help"])
     assert result.exit_code == 0

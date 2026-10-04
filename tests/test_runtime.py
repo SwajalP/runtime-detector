@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ledger.eval.runner import load_tasks, run_task
+from traceweaver.eval.runner import load_tasks, run_task
 
 
 def test_index_finds_for_renewal(demo_rt):
@@ -14,6 +14,6 @@ def test_index_finds_for_renewal(demo_rt):
 
 def test_bundle_after_execution_prefers_discount_policy(demo_rt):
     tasks = {t["id"]: t for t in load_tasks(demo_rt.cfg.repo_root)}
-    result = run_task(demo_rt, tasks["renewal-discount"], use_ledger=True)
+    result = run_task(demo_rt, tasks["renewal-discount"], use_traceweaver=True)
     assert result["success"]
     assert "shop/billing/discount_policy.py" in result["observed_targets"]

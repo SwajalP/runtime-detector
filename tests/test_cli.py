@@ -5,7 +5,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ledger.cli import app
+from traceweaver.cli import app
 
 runner = CliRunner()
 
@@ -53,9 +53,9 @@ def test_hook_stop_reads_stdin(demo_rt):
     assert result.exit_code == 0
 
 
-def test_python_m_ledger_help():
+def test_python_m_traceweaver_help():
     proc = subprocess.run(
-        [sys.executable, "-m", "ledger", "--help"],
+        [sys.executable, "-m", "traceweaver", "--help"],
         capture_output=True,
         text=True,
         check=False,

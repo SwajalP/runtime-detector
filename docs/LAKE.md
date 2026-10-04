@@ -1,12 +1,12 @@
 # Local medallion lake
 
-LEDGER stores an append-only event log in SQLite (`events`). `ledger lake build` materializes that log as bronze, silver, and gold JSONL on disk. The job runs in-process. It does not call Databricks, and it does not report a Databricks benchmark.
+TraceWeaver stores an append-only event log in SQLite (`events`). `traceweaver lake build` materializes that log as bronze, silver, and gold JSONL on disk. The job runs in-process. It does not call Databricks, and it does not report a Databricks benchmark.
 
 When `DATABRICKS_HOST` and `DATABRICKS_TOKEN` are unset, the command prints `backend: local-lake` and still writes the files. When they are set, it still does not call Databricks. A Databricks job can ingest the paths below; this repository does not run that job.
 
 ## Paths
 
-All paths are relative to the repository `.ledger` directory (`demo_repo/.ledger` for the demo):
+All paths are relative to the repository `.traceweaver` directory (`demo_repo/.traceweaver` for the demo):
 
 | Layer | File | Grain |
 |---|---|---|
@@ -20,7 +20,7 @@ All paths are relative to the repository `.ledger` directory (`demo_repo/.ledger
 
 Bronze lines already on disk are not rewritten. New events are appended. The SQLite `events` table is only read. Silver and gold are rebuilt from the current database each time, because they are derived tables.
 
-Secrets: silver and gold pass free text through `ledger.events.redact`. Paths matching the secret globs are dropped. Bronze keeps the raw event row.
+Secrets: silver and gold pass free text through `traceweaver.events.redact`. Paths matching the secret globs are dropped. Bronze keeps the raw event row.
 
 ## Bronze schema (`events.jsonl`)
 
@@ -69,10 +69,10 @@ Inner join of `agent_tool` events to the set of region ids referenced by `progra
 
 `metrics.jsonl`:
 
-- `kind: "ab"` or `kind: "eval"` from `last_ab.json` / `last_eval.json` when that file exists and is not `fixture: true`. Columns: `source_file`, `baseline_repo_calls`, `ledger_repo_calls`, `call_change_pct`, `baseline_repo_tokens`, `ledger_repo_tokens`, `token_change_pct`.
+- `kind: "ab"` or `kind: "eval"` from `last_ab.json` / `last_eval.json` when that file exists and is not `fixture: true`. Columns: `source_file`, `baseline_repo_calls`, `traceweaver_repo_calls`, `call_change_pct`, `baseline_repo_tokens`, `traceweaver_repo_tokens`, `token_change_pct`.
 - `kind: "audit"` from the index: `largest_scc_size`, `large_sccs`, `reverse_bfs_depth`, `reverse_bfs_path`, `min_cut_weight`, `min_cut_seed_side`, `min_cut_seed_side_count`, `min_cut_other_side`. `source_file` is `index`. `fixture` is false.
 
-`ledger lake show` prints row counts and the call/token deltas from the newer of `last_eval.json` and `last_ab.json`, labeled with that filename.
+`traceweaver lake show` prints row counts and the call/token deltas from the newer of `last_eval.json` and `last_ab.json`, labeled with that filename.
 
 ## What a Databricks job would read
 
@@ -94,4 +94,4 @@ USING json
 LOCATION '<mount>/lake/bronze/events.jsonl';
 ```
 
-Repeat for the silver and gold paths. No `DATABRICKS_HOST` call is made by `ledger lake build`.
+Repeat for the silver and gold paths. No `DATABRICKS_HOST` call is made by `traceweaver lake build`.

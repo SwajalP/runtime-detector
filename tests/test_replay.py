@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from ledger.eval.runner import load_tasks, run_task
-from ledger.replay import default_fixture, export_session, replay_session
+from traceweaver.eval.runner import load_tasks, run_task
+from traceweaver.replay import default_fixture, export_session, replay_session
 
 
 def test_export_and_replay_are_labelled_replay(demo_rt, tmp_path):
     tasks = {t["id"]: t for t in load_tasks(demo_rt.cfg.repo_root)}
-    result = run_task(demo_rt, tasks["renewal-discount"], use_ledger=True)
+    result = run_task(demo_rt, tasks["renewal-discount"], use_traceweaver=True)
     assert result["success"]
     src_sid = demo_rt.conn.execute("SELECT session_id FROM sessions ORDER BY started_ms DESC LIMIT 1").fetchone()[
         "session_id"

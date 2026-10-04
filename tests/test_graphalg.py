@@ -1,7 +1,7 @@
 """Tarjan, reverse BFS, Stoer–Wagner, and the demo_repo for_renewal neighborhood."""
 
-from ledger.graphalg.algorithms import reverse_bfs, stoer_wagner, tarjan_scc
-from ledger.graphalg.apply import symbol_neighborhood
+from traceweaver.graphalg.algorithms import reverse_bfs, stoer_wagner, tarjan_scc
+from traceweaver.graphalg.apply import symbol_neighborhood
 
 
 def _sets(components: list[list[str]]) -> set[frozenset[str]]:
@@ -29,7 +29,7 @@ def test_tarjan_known_sccs():
 def test_reverse_bfs_order():
     graph = {"A": ["B"], "B": ["C"], "D": ["B"], "C": []}
     assert reverse_bfs(graph, "C") == ["C", "B", "A", "D"]
-    from ledger.graphalg.algorithms import reverse_bfs_depths, shortest_reverse_path
+    from traceweaver.graphalg.algorithms import reverse_bfs_depths, shortest_reverse_path
 
     assert reverse_bfs_depths(graph, "C") == [("C", 0), ("B", 1), ("A", 2), ("D", 2)]
     assert shortest_reverse_path(graph, "C", "A") == ["C", "B", "A"]
@@ -77,7 +77,7 @@ def test_for_renewal_neighborhood_is_non_empty(demo_rt):
 
 
 def test_renewal_bundle_keeps_for_renewal_and_graph_tags(demo_rt):
-    sid = demo_rt.new_session(agent="test", condition="ledger", task_id="renewal-discount")
+    sid = demo_rt.new_session(agent="test", condition="traceweaver", task_id="renewal-discount")
     bundle = demo_rt.controller.build_bundle(
         sid,
         objective="renewal invoices ignore loyalty discounts",
@@ -191,7 +191,7 @@ def test_renewal_call_chain_and_retry_scc(demo_rt):
     ).fetchall()
     assert wrong == []
 
-    from ledger.graphalg.apply import call_graph
+    from traceweaver.graphalg.apply import call_graph
 
     graph = call_graph(conn)
     large = [comp for comp in tarjan_scc(graph) if len(comp) >= 2]

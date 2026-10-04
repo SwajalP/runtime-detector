@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 
-from ledger.eval.runner import load_tasks, run_task
+from traceweaver.eval.runner import load_tasks, run_task
 
 
 def test_prefetch_fires_call_edge_neighbors_on_renewal_discount(demo_rt):
     tasks = {t["id"]: t for t in load_tasks(demo_rt.cfg.repo_root)}
-    result = run_task(demo_rt, tasks["renewal-discount"], use_ledger=True)
+    result = run_task(demo_rt, tasks["renewal-discount"], use_traceweaver=True)
     assert result["success"]
     assert 1 <= result["prefetches"] <= demo_rt.cfg.prefetch_limit
     assert result["prefetch_precision"] is not None
@@ -54,7 +54,7 @@ def test_prefetch_fires_call_edge_neighbors_on_renewal_discount(demo_rt):
 
 def test_prefetch_does_not_spray_on_held_out_dunning(demo_rt):
     tasks = {t["id"]: t for t in load_tasks(demo_rt.cfg.repo_root)}
-    result = run_task(demo_rt, tasks["held-out-dunning"], use_ledger=True)
+    result = run_task(demo_rt, tasks["held-out-dunning"], use_traceweaver=True)
     assert result["success"]
     assert result["prefetches"] == 0
     assert result["prefetch_precision"] is None

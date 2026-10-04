@@ -1,15 +1,15 @@
-from ledger.mcp.server import handle
-from ledger.mcp.tools import TOOLS, render_bundle_text, render_search_text
+from traceweaver.mcp.server import handle
+from traceweaver.mcp.tools import TOOLS, render_bundle_text, render_search_text
 
 
 def test_tools_schema():
     names = {t["name"] for t in TOOLS}
-    assert names == {"ledger_search", "ledger_context", "ledger_explain"}
+    assert names == {"traceweaver_search", "traceweaver_context", "traceweaver_explain"}
 
 
 def test_mcp_initialize_and_search(demo_rt):
     init = handle(demo_rt, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
-    assert init["result"]["serverInfo"]["name"] == "ledger-runtime"
+    assert init["result"]["serverInfo"]["name"] == "traceweaver-runtime"
     listed = handle(demo_rt, {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     assert len(listed["result"]["tools"]) == 3
     call = handle(
@@ -18,7 +18,7 @@ def test_mcp_initialize_and_search(demo_rt):
             "jsonrpc": "2.0",
             "id": 3,
             "method": "tools/call",
-            "params": {"name": "ledger_search", "arguments": {"query": "for_renewal"}},
+            "params": {"name": "traceweaver_search", "arguments": {"query": "for_renewal"}},
         },
     )
     result = call["result"]["structuredContent"]
@@ -30,7 +30,7 @@ def test_mcp_initialize_and_search(demo_rt):
             "jsonrpc": "2.0",
             "id": 4,
             "method": "tools/call",
-            "params": {"name": "ledger_context", "arguments": {"objective": "fix renewal loyalty", "seed": "for_renewal"}},
+            "params": {"name": "traceweaver_context", "arguments": {"objective": "fix renewal loyalty", "seed": "for_renewal"}},
         },
     )
     payload = bundle["result"]["structuredContent"]

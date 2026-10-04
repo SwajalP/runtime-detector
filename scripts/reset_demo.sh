@@ -6,8 +6,8 @@ FIXTURE="$ROOT/fixtures/replay/renewal-discount.jsonl"
 
 cd "$ROOT/demo_repo"
 git checkout -- . 2>/dev/null || true
-rm -rf .ledger
-ledger init --repo "$ROOT/demo_repo"
+rm -rf .traceweaver
+traceweaver init --repo "$ROOT/demo_repo"
 echo "demo repo reset and re-indexed (offline; not a live model)"
 
 if [[ ! -f "$FIXTURE" ]]; then
@@ -16,10 +16,10 @@ if [[ ! -f "$FIXTURE" ]]; then
 fi
 
 echo "Offline REPLAY fixture: $FIXTURE"
-echo "  ledger replay --repo $ROOT/demo_repo"
+echo "  traceweaver replay --repo $ROOT/demo_repo"
 echo "  labelled REPLAY — recorded events, not live Claude"
 
 if [[ "${1:-}" == "--replay" ]]; then
-  ledger replay --speed 0 --repo "$ROOT/demo_repo"
-  echo "replayed. serve with: ledger serve --repo $ROOT/demo_repo --port 8765"
+  traceweaver replay --speed 0 --repo "$ROOT/demo_repo"
+  echo "replayed. serve with: traceweaver serve --repo $ROOT/demo_repo --port 8765"
 fi

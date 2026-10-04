@@ -3,10 +3,10 @@ import sys
 
 import pytest
 
-from ledger.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
-from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, demo_address, require_mailbox_credentials
-from ledger.agentverse.models import ContextRequest
-from ledger.agentverse.service import Intent, LedgerService, parse_intent
+from traceweaver.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
+from traceweaver.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, demo_address, require_mailbox_credentials
+from traceweaver.agentverse.models import ContextRequest
+from traceweaver.agentverse.service import Intent, TraceWeaverService, parse_intent
 
 CHAT_UTTERANCE = "find the code for renewal invoices ignoring loyalty discounts"
 
@@ -22,7 +22,7 @@ def test_parse_intent_routes():
 
 
 def test_service_context_includes_discount_policy(demo_rt):
-    svc = LedgerService(runtime=demo_rt)
+    svc = TraceWeaverService(runtime=demo_rt)
     out = svc.context(ContextRequest(objective="renewal invoices ignore loyalty discounts", seed="for_renewal"))
     assert out.entries
     assert any("discount_policy" in e.path for e in out.entries)
@@ -32,7 +32,7 @@ def test_service_context_includes_discount_policy(demo_rt):
 
 
 def test_chat_roundtrip_bundle_contains_for_renewal(demo_rt):
-    svc = LedgerService(runtime=demo_rt)
+    svc = TraceWeaverService(runtime=demo_rt)
     text, payload = svc.handle_chat_text(
         "find the loyalty discount on annual renewal `for_renewal`",
         requester="agent1qtestlocal",
@@ -44,7 +44,7 @@ def test_chat_roundtrip_bundle_contains_for_renewal(demo_rt):
 
 def test_asi_one_handler_is_documented_and_wired():
     assert "agent1q" in AGENTVERSE_ADDRESS_PLACEHOLDER
-    assert "LEDGER_RUNTIME_AGENTVERSE_ADDRESS" in AGENTVERSE_ADDRESS_PLACEHOLDER
+    assert "TRACEWEAVER_RUNTIME_AGENTVERSE_ADDRESS" in AGENTVERSE_ADDRESS_PLACEHOLDER
     if ASI_ONE_CHAT_AVAILABLE:
         from concurrent.futures import ThreadPoolExecutor
 
@@ -72,7 +72,7 @@ def test_mailbox_missing_key_errors(monkeypatch):
 
 
 def test_missing_mailbox_key_falls_back_to_local(monkeypatch):
-    from ledger.agentverse.identity import resolve_agent_mode
+    from traceweaver.agentverse.identity import resolve_agent_mode
 
     monkeypatch.delenv("AGENTVERSE_API_KEY", raising=False)
     monkeypatch.delenv("AGENT_SEED", raising=False)
@@ -89,7 +89,7 @@ def test_missing_mailbox_key_falls_back_to_local(monkeypatch):
 
 
 def test_local_client_fallback_returns_for_renewal(demo_rt):
-    from ledger.agentverse.client import local_service_text
+    from traceweaver.agentverse.client import local_service_text
 
     text = local_service_text(
         "find the code for renewal invoices ignoring loyalty discounts",
@@ -102,7 +102,7 @@ def test_local_client_fallback_returns_for_renewal(demo_rt):
 
 
 def test_chat_utterance_returns_for_renewal_and_json(demo_rt):
-    svc = LedgerService(runtime=demo_rt)
+    svc = TraceWeaverService(runtime=demo_rt)
     text, payload = svc.handle_chat_text(CHAT_UTTERANCE, requester="agent1qlocaldemo")
     assert "for_renewal" in text
     assert "shop/billing/discount_policy.py" in text
@@ -115,7 +115,7 @@ def test_chat_utterance_returns_for_renewal_and_json(demo_rt):
 
 def test_agentverse_module_help():
     proc = subprocess.run(
-        [sys.executable, "-m", "ledger.agentverse", "--help"],
+        [sys.executable, "-m", "traceweaver.agentverse", "--help"],
         capture_output=True,
         text=True,
         check=False,

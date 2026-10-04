@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 
-from ledger.api.app import DASHBOARD_HTML, create_app
-from ledger.api.graph import graph_payload, hierarchy_payload
+from traceweaver.api.app import DASHBOARD_HTML, create_app
+from traceweaver.api.graph import graph_payload, hierarchy_payload
 
 
 def test_graph_and_hierarchy_endpoints(demo_rt):
-    sid = demo_rt.new_session(agent="test", condition="ledger", task_id="renewal-discount")
+    sid = demo_rt.new_session(agent="test", condition="traceweaver", task_id="renewal-discount")
     demo_rt.set_objective(sid, "find renewal discount policy")
     bundle = demo_rt.controller.build_bundle(sid, objective="loyalty discount on renewal", seed="for_renewal")
     assert bundle["entries"]
@@ -28,7 +28,7 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     h = client.get("/api/graph/hierarchy", params={"session_id": sid}).json()
     assert "L1" in h["levels"]
     html = client.get("/").text
-    assert "LEDGER" in html
+    assert "TraceWeaver" in html
     # Serve prefers dashboard/dist/index.html when a Vite build exists;
     # otherwise the self-contained dashboard.html fallback.
     if "/assets/" in html:

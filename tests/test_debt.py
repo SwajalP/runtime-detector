@@ -2,9 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from ledger.api.app import DASHBOARD_HTML, create_app
-from ledger.audit import build_audit
-from ledger.graphalg.debt import (
+from traceweaver.api.app import DASHBOARD_HTML, create_app
+from traceweaver.audit import build_audit
+from traceweaver.graphalg.debt import (
     CHOKE_WEIGHT,
     COMPLEX_WEIGHT,
     LINES_THRESHOLD,

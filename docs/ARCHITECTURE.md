@@ -1,12 +1,12 @@
-# LEDGER Runtime architecture
+# TraceWeaver Runtime architecture
 
-LEDGER is an online context-control layer between a coding agent and repository tools. It is a **logical cache of source regions**, not a model-provider KV cache.
+TraceWeaver is an online context-control layer between a coding agent and repository tools. It is a **logical cache of source regions**, not a model-provider KV cache.
 
 ```
 agent ──► hooks / MCP / Agentverse / CLI
               │
               ▼
-        LedgerRuntime
+        TraceWeaverRuntime
          ├─ EventCollector   agent_tool + program_trace + controller ops
          ├─ incremental index  tree-sitter regions + FTS + call edges
          ├─ ContextController  score → admit → represent → budget → prefetch
@@ -20,12 +20,12 @@ agent ──► hooks / MCP / Agentverse / CLI
                               working set, latest bundle, audit, A/B metrics
 ```
 
-`ledger lake build` reads the SQLite log and writes JSONL under `.ledger/lake/`. That is a local pipeline. It does not call Databricks. The table layout a Databricks job would ingest is `docs/LAKE.md`.
+`traceweaver lake build` reads the SQLite log and writes JSONL under `.traceweaver/lake/`. That is a local pipeline. It does not call Databricks. The table layout a Databricks job would ingest is `docs/LAKE.md`.
 
 ## Dual trace
 
 1. **Agent trace** — Pre/Post tool hooks (Claude Code) or the simulated harness record grep/read/edit/test events and the regions they touched.
-2. **Program trace** — `ledger test` / Agentverse `TraceRequest` runs pytest under coverage and maps executed lines onto the same region ids. Failing-test frames are pinned as L0 anchors.
+2. **Program trace** — `traceweaver test` / Agentverse `TraceRequest` runs pytest under coverage and maps executed lines onto the same region ids. Failing-test frames are pinned as L0 anchors.
 
 The controller joins the two traces: a region that was both searched and executed ranks above a region that only appeared in docs or marketing copy.
 
@@ -44,12 +44,12 @@ Admission is `expected_value(score, tokens)` against `admission_threshold`. Repl
 
 The same controller is exposed three ways:
 
-- MCP stdio: `ledger_search`, `ledger_context`, `ledger_explain`
-- CLI: `ledger context`, `ledger explain`, `ledger test`, `ledger eval`, `ledger lake build`
-- Fetch.ai uAgent: `LedgerContextProtocol` + chat (`ledger agentverse-demo`)
+- MCP stdio: `traceweaver_search`, `traceweaver_context`, `traceweaver_explain`
+- CLI: `traceweaver context`, `traceweaver explain`, `traceweaver test`, `traceweaver eval`, `traceweaver lake build`
+- Fetch.ai uAgent: `TraceWeaverContextProtocol` + chat (`traceweaver agentverse-demo`)
 
-Raw Grep / Read / Bash / Edit stay available. LEDGER annotates repeated broad search; it does not hide the repository.
+Raw Grep / Read / Bash / Edit stay available. TraceWeaver annotates repeated broad search; it does not hide the repository.
 
 ## Evaluation
 
-`ledger eval --repo demo_repo` runs a fixed simulated agent twice (baseline vs LEDGER) on the same commit and the same pytest selection. LEDGER's own injected tokens and tool calls are counted against LEDGER. Success is reported before efficiency. Held-out tasks (`held-out-proration`, `held-out-dunning`) are not used to tune weights.
+`traceweaver eval --repo demo_repo` runs a fixed simulated agent twice (baseline vs TraceWeaver) on the same commit and the same pytest selection. TraceWeaver's own injected tokens and tool calls are counted against TraceWeaver. Success is reported before efficiency. Held-out tasks (`held-out-proration`, `held-out-dunning`) are not used to tune weights.

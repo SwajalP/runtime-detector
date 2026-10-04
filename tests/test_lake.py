@@ -6,8 +6,8 @@ import json
 
 from typer.testing import CliRunner
 
-from ledger.cli import app
-from ledger.lake.pipeline import build_lake, lake_summary
+from traceweaver.cli import app
+from traceweaver.lake.pipeline import build_lake, lake_summary
 
 runner = CliRunner()
 SECRET_QUERY = "api_key=sekrit-value"
@@ -27,7 +27,7 @@ def test_lake_build_joins_traced_regions_and_keeps_bronze_immutable(demo_rt, mon
     monkeypatch.delenv("DATABRICKS_TOKEN", raising=False)
     renewal = _region(demo_rt, "for_renewal", "discount_policy.py")
     failing = _region(demo_rt, "test_renewal_applies_loyalty_on_annual_boundary", "test_renewal_discount.py")
-    sid = demo_rt.new_session(agent="test", condition="ledger", task_id="renewal-discount")
+    sid = demo_rt.new_session(agent="test", condition="traceweaver", task_id="renewal-discount")
     demo_rt.collector.record(
         session_id=sid,
         source="agent_tool",
@@ -48,14 +48,14 @@ def test_lake_build_joins_traced_regions_and_keeps_bronze_immutable(demo_rt, mon
         objective="renewal invoices ignore loyalty discounts",
         seed="for_renewal",
     )
-    (demo_rt.cfg.ledger_dir / "last_ab.json").write_text(
+    (demo_rt.cfg.traceweaver_dir / "last_ab.json").write_text(
         json.dumps(
             {
                 "source": "claude_hooks",
                 "fixture": False,
                 "task_id": "renewal-discount",
                 "baseline": {"repo_tool_calls": 10, "repo_tokens": 1000},
-                "ledger": {"repo_tool_calls": 4, "repo_tokens": 400},
+                "traceweaver": {"repo_tool_calls": 4, "repo_tokens": 400},
             }
         ),
         encoding="utf-8",
@@ -72,7 +72,7 @@ def test_lake_build_joins_traced_regions_and_keeps_bronze_immutable(demo_rt, mon
     assert report["silver"]["rows"] >= 1
     assert report["gold"]["metrics"]["rows"] >= 1
 
-    root = demo_rt.cfg.ledger_dir / "lake"
+    root = demo_rt.cfg.traceweaver_dir / "lake"
     bronze_text = (root / "bronze" / "events.jsonl").read_text(encoding="utf-8")
     silver_text = (root / "silver" / "region_observations.jsonl").read_text(encoding="utf-8")
     metrics = [
@@ -134,15 +134,15 @@ def test_lake_cli_show_labels_source_file(demo_rt, monkeypatch):
     monkeypatch.delenv("DATABRICKS_HOST", raising=False)
     monkeypatch.delenv("DATABRICKS_TOKEN", raising=False)
     renewal = _region(demo_rt, "for_renewal", "discount_policy.py")
-    sid = demo_rt.new_session(agent="test", condition="ledger")
+    sid = demo_rt.new_session(agent="test", condition="traceweaver")
     demo_rt.collector.record(session_id=sid, source="program_trace", operation="test", regions=[renewal])
     demo_rt.collector.record(session_id=sid, source="agent_tool", operation="read", query="renewal", regions=[renewal])
-    (demo_rt.cfg.ledger_dir / "last_ab.json").write_text(
+    (demo_rt.cfg.traceweaver_dir / "last_ab.json").write_text(
         json.dumps(
             {
                 "fixture": False,
                 "baseline": {"repo_tool_calls": 20, "repo_tokens": 200},
-                "ledger": {"repo_tool_calls": 5, "repo_tokens": 50},
+                "traceweaver": {"repo_tool_calls": 5, "repo_tokens": 50},
             }
         ),
         encoding="utf-8",

@@ -114,19 +114,19 @@ export default function App() {
   const max = heat[0]?.[1] || 1;
   const ev = state.last_eval;
   const evalLine = ev
-    ? `eval ${ev.n_tasks}×${ev.repeats || 1}: baseline ${ev.baseline?.success}/${ev.baseline?.n} vs LEDGER ${ev.ledger?.success}/${ev.ledger?.n} · tokens ${ev.change_pct?.repo_tokens ?? "—"}%`
+    ? `eval ${ev.n_tasks}×${ev.repeats || 1}: baseline ${ev.baseline?.success}/${ev.baseline?.n} vs TraceWeaver ${ev.traceweaver?.success}/${ev.traceweaver?.n} · tokens ${ev.change_pct?.repo_tokens ?? "—"}%`
     : "";
 
   return (
     <div>
       <header>
         <div>
-          <strong>LEDGER RUNTIME</strong>
+          <strong>TraceWeaver RUNTIME</strong>
           <span> context memory hierarchy · dual-trace controller</span>
           {state.replay ? <span> · REPLAY — recorded events, not a live model</span> : null}
         </div>
         <div className="toolbar">
-          <button onClick={() => run("ledger")}>Run LEDGER</button>
+          <button onClick={() => run("traceweaver")}>Run TraceWeaver</button>
           <button className="baseline" onClick={() => run("baseline")}>Run baseline</button>
           <button onClick={compare}>A/B compare</button>
         </div>

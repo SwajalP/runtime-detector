@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from ledger.agentverse.identity import demo_address
+from traceweaver.agentverse.identity import demo_address
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "demo_repo"
@@ -43,7 +43,7 @@ def _ask(port: int, *extra: str) -> subprocess.CompletedProcess[str]:
     last = None
     for _ in range(8):
         last = subprocess.run(
-            [sys.executable, "-m", "ledger.agentverse.client", "--local", "--port", str(port), *extra, UTTERANCE],
+            [sys.executable, "-m", "traceweaver.agentverse.client", "--local", "--port", str(port), *extra, UTTERANCE],
             cwd=str(ROOT),
             capture_output=True,
             text=True,
@@ -63,11 +63,11 @@ def agent_proc(tmp_path: Path):
     shutil.copytree(
         DEMO,
         root,
-        ignore=shutil.ignore_patterns(".ledger", "__pycache__", ".pytest_cache", ".claude", ".mcp.json"),
+        ignore=shutil.ignore_patterns(".traceweaver", "__pycache__", ".pytest_cache", ".claude", ".mcp.json"),
     )
     port = _free_port()
     proc = subprocess.Popen(
-        [sys.executable, "-m", "ledger.agentverse", "--repo", str(root), "--local", "--port", str(port)],
+        [sys.executable, "-m", "traceweaver.agentverse", "--repo", str(root), "--local", "--port", str(port)],
         cwd=str(ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

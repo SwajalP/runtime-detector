@@ -8,14 +8,14 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ledger.adapters.claude_hooks import (
+from traceweaver.adapters.claude_hooks import (
     handle_post,
     handle_pre,
     handle_session_start,
     handle_user_prompt,
     install_claude_integration,
 )
-from ledger.cli import app
+from traceweaver.cli import app
 
 runner = CliRunner()
 
@@ -29,7 +29,7 @@ def test_install_hooks_use_this_interpreter(demo_rt):
     settings = Path(paths["settings"]).read_text()
     assert sys.executable in settings
     mcp = json.loads(Path(paths["mcp"]).read_text())
-    assert mcp["mcpServers"]["ledger"]["command"] == sys.executable
+    assert mcp["mcpServers"]["traceweaver"]["command"] == sys.executable
 
 
 def test_hook_pre_json_does_not_hang_on_stdin(demo_rt):
@@ -55,7 +55,7 @@ def test_post_read_records_discount_policy(demo_rt):
         },
     }
     assert handle_post(demo_rt, payload) == {}
-    sid = demo_rt.ensure_session(agent="claude", condition="ledger", external_id="hook-read")
+    sid = demo_rt.ensure_session(agent="claude", condition="traceweaver", external_id="hook-read")
     events = demo_rt.collector.list_events(sid, 50)
     assert any(e["operation"] == "read" and "discount_policy.py" in (e.get("query") or "") for e in events)
 
@@ -76,7 +76,7 @@ def test_second_grep_advises_after_traced_pytest(demo_rt):
     demo_rt.cfg.observe_only = False
     sid = "advise-grep"
     start = handle_session_start(demo_rt, {"session_id": sid, "source": "test"})
-    assert "ledger_context" in start["hookSpecificOutput"]["additionalContext"]
+    assert "traceweaver_context" in start["hookSpecificOutput"]["additionalContext"]
     handle_user_prompt(
         demo_rt,
         {

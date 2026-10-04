@@ -1,0 +1,141 @@
+# Evaluation tasks for the demo repository (spec §14.5).
+#
+# families : bug (localize/fix from failing test), cross-layer (controller→service→repo),
+#            repeated (same subsystem twice → learned locality)
+# success  : localize = a ground-truth target file is observed in the trajectory
+#            patch    = the task's pytest selection passes after the agent's edit
+# held_out : never used while tuning policy weights/thresholds
+#
+# baseline_queries are the terms the simulated agent searches for, in order,
+# in BOTH conditions. seed is the symbol/test/error the agent passes to TraceWeaver.
+
+tasks:
+  - id: renewal-discount
+    family: bug
+    success: patch
+    seed: test_renewal_applies_loyalty_on_annual_boundary
+    prompt: >
+      Renewal invoices ignore loyalty discounts when a subscription crosses
+      its annual renewal boundary. Find the discount policy responsible and fix it.
+    target_files:
+      - shop/billing/discount_policy.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["renewal discount", "loyalty", "annual boundary", "invoice"]
+    patch:
+      path: shop/billing/discount_policy.py
+      find: "if subscription.crosses_annual_boundary:\n        return Money(0)"
+      replace: "if subscription.crosses_annual_boundary:\n        return loyalty_discount(subscription, loyalty)"
+
+  - id: calculate-total
+    family: cross-layer
+    success: localize
+    seed: calculate_total
+    prompt: Locate where the renewal total is computed from list price, discount and tax.
+    target_files:
+      - shop/billing/subscription_service.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["total", "tax", "renew", "subtotal"]
+
+  - id: invoice-save
+    family: cross-layer
+    success: localize
+    seed: InvoiceRepository
+    prompt: Find the invoice repository save path used after a renewal charge.
+    target_files:
+      - shop/billing/invoice_repository.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["invoice", "save", "repository"]
+
+  - id: renewal-controller
+    family: cross-layer
+    success: localize
+    seed: RenewalController
+    prompt: Which API controller handles renewals and delegates to the subscription service?
+    target_files:
+      - shop/api/renewal_controller.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["renewal", "controller", "renew("]
+
+  - id: failing-test
+    family: bug
+    success: localize
+    seed: test_renewal_applies_loyalty_on_annual_boundary
+    prompt: Find the failing pytest covering annual-boundary loyalty discounts.
+    target_files:
+      - tests/test_renewal_discount.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["annual", "boundary", "loyalty", "test_renewal"]
+
+  - id: promotion-confuser
+    family: bug
+    success: localize
+    seed: for_renewal
+    prompt: >
+      Marketing, promotions, legacy code and docs all mention "renewal discount".
+      Ignore them and find the policy function that actually prices renewals.
+    target_files:
+      - shop/billing/discount_policy.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["renewal discount", "promotion", "seasonal", "loyalty"]
+
+  - id: tax-adapter
+    family: cross-layer
+    success: localize
+    seed: TaxAdapter
+    prompt: Locate the tax adapter applied after the discount is subtracted.
+    target_files:
+      - shop/billing/tax_adapter.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["tax", "rate", "adapter"]
+
+  - id: schema-invoice
+    family: cross-layer
+    success: localize
+    seed: Invoice
+    prompt: Find the Invoice dataclass stored by the repository and exported by reporting.
+    target_files:
+      - shop/billing/invoice_repository.py
+    pytest_args: ["-q", "tests/test_reporting.py"]
+    baseline_queries: ["class Invoice", "discount_cents", "invoice"]
+
+  - id: repeat-loyalty-lookup
+    family: repeated
+    success: localize
+    seed: Loyalty
+    prompt: Find how loyalty tiers map to discount rates for existing subscribers.
+    target_files:
+      - shop/billing/models.py
+    pytest_args: ["-q", "tests/test_renewal_discount.py"]
+    baseline_queries: ["loyalty", "tier", "gold", "rate"]
+
+  - id: webhook-renewal
+    family: cross-layer
+    success: localize
+    seed: RenewalWebhook
+    prompt: Where are billing-provider renewal webhooks decoded into a Subscription?
+    target_files:
+      - shop/api/webhooks.py
+    pytest_args: ["-q", "tests/test_webhooks.py"]
+    baseline_queries: ["webhook", "payload", "renewal", "provider"]
+
+  - id: held-out-proration
+    family: repeated
+    success: localize
+    held_out: true
+    seed: proration_credit
+    prompt: Find the proration math used when a plan changes mid-cycle.
+    target_files:
+      - shop/billing/proration.py
+    pytest_args: ["-q", "tests/test_proration.py"]
+    baseline_queries: ["proration", "mid-cycle", "unused_days", "plan"]
+
+  - id: held-out-dunning
+    family: bug
+    success: localize
+    held_out: true
+    seed: next_retry_hours
+    prompt: Locate the dunning retry backoff used after a failed renewal charge.
+    target_files:
+      - shop/billing/dunning.py
+    pytest_args: ["-q", "tests/test_dunning.py"]
+    baseline_queries: ["dunning", "retry", "failed", "renewal"]

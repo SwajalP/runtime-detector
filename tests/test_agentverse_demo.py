@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from ledger.agentverse.demo import run_agentverse_demo
-from ledger.agentverse.identity import demo_address
+from traceweaver.agentverse.demo import run_agentverse_demo
+from traceweaver.agentverse.identity import demo_address
 
 
 def test_agentverse_demo_falls_back_locally(demo_rt, monkeypatch):
@@ -24,6 +24,6 @@ def test_agentverse_demo_falls_back_locally(demo_rt, monkeypatch):
     notes = " ".join(report["notes"])
     assert "AGENTVERSE_API_KEY" in notes
     assert "falling back to local" in notes
-    saved = json.loads((demo_rt.cfg.ledger_dir / "agentverse_demo.json").read_text(encoding="utf-8"))
+    saved = json.loads((demo_rt.cfg.traceweaver_dir / "agentverse_demo.json").read_text(encoding="utf-8"))
     assert saved["fixture"] is False
     assert saved["includes_for_renewal"] is True
