@@ -64,8 +64,11 @@ Fetch.ai uAgent (optional extra):
 
 ```bash
 pip install -e ".[agentverse]"
+python -m ledger.agentverse --help
 ledger agentverse --repo demo_repo --local --port 8000
 ```
+
+ASI:One uses the official `AgentChatProtocol` handler in `ledger/agentverse/asi_one.py`. Published address placeholder (replace after `ledger agentverse --mailbox`): `agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>`. See `docs/AGENTVERSE.md`.
 
 `ledger init` writes Claude Code **PreToolUse / PostToolUse / SessionStart** hooks and an MCP server (`.mcp.json`) exposing:
 

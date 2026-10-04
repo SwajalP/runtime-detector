@@ -21,8 +21,10 @@ is that context *control* is the missing systems layer, not another prompt.
 `ledger/agentverse` exposes the same controller as a uAgent:
 
 - structured `LedgerContextProtocol` (context / search / explain / trace / metrics)
-- keyword-routed `ChatText` for ASI:One-style conversations
-- `python -m ledger.agentverse --repo demo_repo --local`
+- official ASI:One `AgentChatProtocol` (`ledger/agentverse/asi_one.py`) when `uagents_core.contrib.protocols.chat` is installed
+- keyword-routed `ChatText` fallback for the same intents
+- `python -m ledger.agentverse --help` / `--repo demo_repo --local`
+- published address placeholder: `agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>`
 - example client: `python -m ledger.agentverse.client <address> "<objective>"`
 
 Run locally without mailbox credentials. Mailbox mode is opt-in (`--mailbox`).

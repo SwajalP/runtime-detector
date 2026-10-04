@@ -7,10 +7,13 @@ Public pieces:
 * :mod:`ledger.agentverse.service` – framework-free glue between the models
   and :class:`ledger.runtime.LedgerRuntime` (intent parsing, rendering).
 * :mod:`ledger.agentverse.agent`   – the ``ledger-runtime`` uAgent exposing
-  the structured protocol and keyword-routed chat text.
+  the structured protocol, official ASI:One ``AgentChatProtocol``, and
+  keyword-routed ``ChatText`` fallback.
+* :mod:`ledger.agentverse.asi_one` – ASI:One chat handler + address placeholder.
 * :mod:`ledger.agentverse.client`  – example agent-to-agent client.
 
 Run the agent with ``python -m ledger.agentverse --repo demo_repo --local``.
+Published Agentverse address placeholder: ``agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>``.
 """
 
 from __future__ import annotations

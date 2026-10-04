@@ -14,6 +14,7 @@ from pathlib import Path
 from uagents import Agent, Context, Protocol
 
 from ledger.agentverse import AGENT_NAME, PROTOCOL_NAME, PROTOCOL_VERSION
+from ledger.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
 from ledger.agentverse.models import (
     ChatText,
     ContextBundle,
@@ -87,15 +88,20 @@ def build_agent(
         ),
     )
     agent.include(build_protocol(service, pool), publish_manifest=local)
+    asi = build_asi_one_protocol(service, pool)
+    if asi is not None:
+        agent.include(asi, publish_manifest=local)
 
     @agent.on_event("startup")
     async def _startup(ctx: Context):
         ctx.logger.info(
-            "LEDGER Runtime agent online repo=%s address=%s local=%s",
+            "LEDGER Runtime agent online repo=%s address=%s local=%s asi_one=%s",
             service.repo_name,
             agent.address,
             local,
+            ASI_ONE_CHAT_AVAILABLE,
         )
+        ctx.logger.info("Agentverse address placeholder: %s", AGENTVERSE_ADDRESS_PLACEHOLDER)
 
     return agent
 
@@ -115,6 +121,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m ledger.agentverse",
         description="LEDGER Runtime uAgent (Agentverse / ASI:One)",
+        epilog=(
+            "ASI:One chats via official AgentChatProtocol when "
+            "uagents_core.contrib.protocols.chat is installed; otherwise "
+            "LedgerContextProtocol ChatText is the fallback. "
+            f"Published address placeholder: {AGENTVERSE_ADDRESS_PLACEHOLDER} "
+            "(replace after `ledger agentverse --mailbox`)."
+        ),
     )
     p.add_argument("--repo", type=Path, default=None, help="Repository root (defaults to discover/.ledger)")
     p.add_argument("--local", action="store_true", default=True, help="Bind localhost (default)")

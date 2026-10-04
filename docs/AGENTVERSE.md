@@ -20,6 +20,12 @@ Mailbox / Agentverse registration is opt-in:
 ledger agentverse --repo demo_repo --mailbox
 ```
 
+Published Agentverse address (replace after mailbox registration):
+
+```
+agent1q<LEDGER_RUNTIME_AGENTVERSE_ADDRESS>
+```
+
 ## LedgerContextProtocol
 
 Structured request → reply pairs (inbound strings are data only — never executed):
@@ -34,9 +40,19 @@ Structured request → reply pairs (inbound strings are data only — never exec
 
 Pytest arguments are whitelisted to repo-relative `*.py[::node]` paths and a small flag set (`-q`, `-x`, `--tb=short`, …).
 
+## ASI:One chat
+
+ASI:One talks the official `AgentChatProtocol` (`uagents_core.contrib.protocols.chat`): inbound `ChatMessage`, outbound `ChatAcknowledgement` plus a `ChatMessage` reply. `ledger/agentverse/asi_one.py` is that handler. Text is keyword-routed by `parse_intent` — the same path as the structured `ChatText` fallback on `LedgerContextProtocol` if the official package is missing.
+
+Verify the CLI surface:
+
+```bash
+python -m ledger.agentverse --help
+```
+
 ## Chat
 
-Plain `ChatText` is keyword-routed by `parse_intent`:
+Plain `ChatText` (and ASI:One `ChatMessage` text) is keyword-routed by `parse_intent`:
 
 - `<objective>` or `context <objective>` — build a bundle
 - `search for_renewal` — signatures only
