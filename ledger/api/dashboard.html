@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LEDGER Runtime</title>
+  <style>
+    :root {
+      --bg: #07090d;
+      --panel: #10151d;
+      --ink: #e8edf5;
+      --muted: #8b97a8;
+      --line: #243042;
+      --hit: #3ee0b0;
+      --miss: #ff6b6b;
+      --warn: #f5c542;
+      --accent: #7aa2ff;
+      --heat: #ff7a45;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 500px at 10% -10%, #152033, var(--bg));
+      color: var(--ink);
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 22px; border-bottom: 1px solid var(--line);
+    }
+    header strong { letter-spacing: 0.14em; font-size: 13px; }
+    header span { color: var(--muted); font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.2fr 0.9fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px; padding: 12px;
+      min-height: calc(100vh - 58px);
+    }
+    .card {
+      background: color-mix(in srgb, var(--panel) 88%, black);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      overflow: auto;
+    }
+    .metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; background: transparent; border: 0; padding: 0; }
+    .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+    .metric b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+    .metric label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+    h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .evt { display: grid; grid-template-columns: 64px 88px 1fr; gap: 8px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1b2431; }
+    .op-grep,.op-glob { color: var(--warn); }
+    .op-read { color: var(--accent); }
+    .op-test,.op-execute { color: #c08bff; }
+    .op-admit,.op-hit,.op-bundle_served,.op-prefetch { color: var(--hit); }
+    .op-evict,.op-miss { color: var(--miss); }
+    .op-invalidate { color: #ff8a5b; }
+    .path {
+      display: flex; gap: 8px; align-items: center; padding: 7px 0;
+      border-left: 2px solid var(--heat); padding-left: 10px; margin: 6px 0;
+      font-size: 13px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #1b2431; vertical-align: top; }
+    .stale { color: var(--miss); font-weight: 600; }
+    .toolbar { display: flex; gap: 8px; }
+    button {
+      background: #1a2740; color: var(--ink); border: 1px solid #35508a;
+      border-radius: 8px; padding: 8px 10px; cursor: pointer;
+    }
+    button.baseline { border-color: #6a3340; background: #2a151a; }
+    .heatrow { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 4px 0; }
+    .bar { height: 8px; background: linear-gradient(90deg, #3b2a1f, var(--heat)); border-radius: 99px; }
+    .compare { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <strong>LEDGER RUNTIME</strong>
+      <span> context memory hierarchy · dual-trace controller</span>
+    </div>
+    <div class="toolbar">
+      <button onclick="run('renewal-discount','ledger')">Run LEDGER</button>
+      <button class="baseline" onclick="run('renewal-discount','baseline')">Run baseline</button>
+      <button onclick="compare()">A/B compare</button>
+    </div>
+  </header>
+  <div class="grid">
+    <div class="card metrics" id="metrics"></div>
+    <div class="card" style="grid-row: span 2">
+      <h2>Agent + program timeline</h2>
+      <div id="events"></div>
+    </div>
+    <div class="card">
+      <h2>Joined execution path</h2>
+      <div id="path"></div>
+    </div>
+    <div class="card">
+      <h2>Context temperature</h2>
+      <div id="heat"></div>
+    </div>
+    <div class="card" style="grid-column: 2 / -1">
+      <h2>Active working set</h2>
+      <div id="ws"></div>
+    </div>
+    <div class="card compare">
+      <h2>Last A/B</h2>
+      <pre id="ab" style="white-space:pre-wrap; font-size:12px; color:#c9d4e5"></pre>
+    </div>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    function render(state) {
+      const m = state.metrics || {};
+      const cells = [
+        ["session", (state.session_id || "—").slice(0, 16)],
+        ["tool calls", m.repo_tool_calls ?? "—"],
+        ["repo tokens", m.repo_tokens ?? "—"],
+        ["hit rate", m.hit_rate != null ? (m.hit_rate*100).toFixed(0)+"%" : "—"],
+        ["invalidations", m.invalidations ?? 0],
+        ["stale", m.stale_entries ?? 0],
+      ];
+      $("metrics").innerHTML = cells.map(([k,v]) => `<div class="metric"><label>${k}</label><b>${v}</b></div>`).join("");
+      $("events").innerHTML = (state.events||[]).slice(-80).reverse().map(e =>
+        `<div class="evt"><span>${e.turn}</span><span class="op-${e.operation}">${e.operation}</span><span>${(e.query||e.source||"").toString().slice(0,88)}</span></div>`
+      ).join("");
+      $("path").innerHTML = (state.execution_path||[]).map(p =>
+        `<div class="path ${p.stale ? "stale":""}">${p.symbol||p.path} <span style="color:#8b97a8">x=${Number(p.execution_score||0).toFixed(2)}</span></div>`
+      ).join("") || "<span style='color:#8b97a8'>Run a failing test to light this up.</span>";
+      const heat = Object.entries(state.heat||{}).sort((a,b)=>b[1]-a[1]).slice(0,12);
+      const max = heat[0]?.[1] || 1;
+      $("heat").innerHTML = heat.map(([p,v]) =>
+        `<div class="heatrow"><div class="bar" style="width:${Math.max(8,(v/max)*100)}%"></div><span>${p}</span></div>`
+      ).join("");
+      const rows = (state.working_set||[]).slice(0,18).map(w =>
+        `<tr><td>${w.symbol||w.path||w.region_id}</td><td>${Number(w.execution_score||0).toFixed(2)}</td>
+         <td>${Number(w.access_frequency||0).toFixed(1)}</td>
+         <td class="${w.stale?'stale':''}">${w.stale?'STALE':'fresh'}</td>
+         <td>${(w.explanation||"").slice(0,80)}</td></tr>`
+      ).join("");
+      $("ws").innerHTML = `<table><tr><th>region</th><th>exec</th><th>freq</th><th>fresh</th><th>why</th></tr>${rows}</table>`;
+    }
+    async function boot() {
+      const s = await (await fetch("/api/state")).json();
+      render(s);
+      const es = new EventSource("/api/stream");
+      es.onmessage = async (msg) => {
+        const data = JSON.parse(msg.data);
+        if (data.type === "snapshot") render(data.state);
+        if (data.type === "event") {
+          const s = await (await fetch("/api/state")).json();
+          render(s);
+        }
+      };
+    }
+    async function run(task, condition) {
+      $("ab").textContent = "running " + condition + "…";
+      const r = await fetch(`/api/eval/run?task_id=${task}&condition=${condition}`, {method:"POST"});
+      $("ab").textContent = JSON.stringify(await r.json(), null, 2);
+      render(await (await fetch("/api/state")).json());
+    }
+    async function compare() {
+      $("ab").textContent = "comparing…";
+      const r = await fetch("/api/eval/compare?task_id=renewal-discount", {method:"POST"});
+      $("ab").textContent = JSON.stringify(await r.json(), null, 2);
+      render(await (await fetch("/api/state")).json());
+    }
+    boot();
+  </script>
+</body>
+</html>
