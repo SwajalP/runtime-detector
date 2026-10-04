@@ -1,66 +1,61 @@
 # Three-minute demo
 
-Offline first. No model key. Do not present replay as live Claude.
+Commands below were run from `/Users/Lay/runtime-detector` on 2026-10-04 with `source .venv/bin/activate`. `OPENAI_API_KEY` and `AGENTVERSE_API_KEY` were unset. Nothing here is a live Claude or GPT measurement.
 
 ```bash
 source .venv/bin/activate
-./scripts/reset_demo.sh
+ledger index --repo demo_repo
+ledger integrate claude --repo demo_repo
+ledger integrate cline --repo demo_repo
+ledger integrate gpt --repo demo_repo
+LEDGER_DUMMY=1 ledger gpt-turn --objective "renewal invoices ignore loyalty discounts" --repo demo_repo
+ledger gpt-turn --objective "renewal invoices ignore loyalty discounts" --seed for_renewal --repo demo_repo
+ledger audit --repo demo_repo
+ledger ab --task renewal-discount --repo demo_repo
 ledger serve --repo demo_repo --port 8765
 ```
 
-Open http://127.0.0.1:8765
-
-## 0:00–0:40 — the claim
-
-LEDGER is a **logical context cache** for source regions. It is not a
-provider KV cache. It is not “grep is slow.” Same model, same task, same
-repo: the agent wastes tokens by searching without a working set.
-
-## 0:40–1:40 — measured A/B (simulated)
-
-In a second terminal:
+In another terminal, local uAgent (no mailbox key):
 
 ```bash
 source .venv/bin/activate
-ledger eval --repo demo_repo --task renewal-discount
+python -m ledger.agentverse --repo demo_repo --local --port 8021
+python -m ledger.agentverse.client --local --port 8021 \
+  "find the code for renewal invoices ignoring loyalty discounts"
 ```
 
-Point at the table: success held, fewer repo search/read calls, fewer
-tokens (LEDGER-injected context is counted against LEDGER). Prefetch on
-this task should be 1 unused call successor with precision 1.0.
+`python -m ledger.agentverse --mailbox` with no `AGENTVERSE_API_KEY` printed `falling back to local mode` and kept serving on localhost. It did not crash and did not register a mailbox.
 
-If there is time: `ledger eval --repo demo_repo --all` (12/12, repo calls
-191 → 9, tokens 84,396 → 23,647 on the 2026-10-04 simulated run). Say
-out loud that median time-to-target is worse because LEDGER traces pytest
-first; calls-to-target is better (1.0 vs 2.167).
+## What that run actually measured
 
-## 1:40–2:20 — dashboard
+`ledger index` (Tree-sitter bodies already in the index, 70 non-module regions):
 
-On the live page: timeline (admit / prefetch / bundle), working set,
-code knowledge graph, L0–L2 hierarchy. Open a bundle explanation if the
-simulated run is still the active session.
+| | bytes | estimated tokens |
+|---|---:|---:|
+| full body | 18,548 | 4,610 |
+| signature card | 5,824 | 1,430 |
 
-## 2:20–2:45 — venue Wi-Fi failure
+`LEDGER_DUMMY=1` wrote `demo_repo/.ledger/last_gpt_turn.json` with `fixture: true`, `provider: "fixture"`, `live: false`. That file is `ledger/fixtures/gpt_trace.json`. It is not an OpenAI call.
 
-Do **not** start Claude. Replay the committed fixture:
+The next `ledger gpt-turn` (no dummy, no API key) was `source: local_backup`, `fixture: false`, `live: false`. The bundle included `shop/billing/discount_policy.py::for_renewal` with graph tags `reverse_bfs`, `min_cut`, `tarjan`.
 
-```bash
-./scripts/reset_demo.sh --replay
-# dashboard already serving: refresh
-```
+`ledger audit` wrote `demo_repo/.ledger/last_audit.json`. Structural, not a SonarQube score:
 
-The session agent is `replay` and the label starts with `REPLAY`.
-Banner: recorded events, not a live model.
+- large SCCs: 0 (largest component size 1)
+- Stoer–Wagner min-cut around `shop/billing/discount_policy.py::for_renewal`: weight 1.0, 8 nodes
+- clone clusters: 0
+- lexical traps: 30 (legacy, promotions, and other renewal/discount lookalikes)
+- `fixture_comparison` and `mailbox_status` are labeled `fixture: true`
 
-## 2:45–3:00 — Agentverse (local only)
+`ledger ab --task renewal-discount` wrote `demo_repo/.ledger/last_ab.json`. Hook schema, not live Claude (`claude -p` returned `Invalid API key · Please run /login`):
 
-```bash
-ledger agentverse --repo demo_repo --local --port 8000
-```
+| condition | target found | advice | repo calls | ledger calls | repo tokens |
+|---|---|---:|---:|---:|---:|
+| baseline | yes | 0 | 20 | 0 | 9,103 |
+| ledger | yes | 1 | 4 | 3 | 4,740 |
 
-Same controller over `LedgerContextProtocol` / ASI:One chat handler.
-Local demo identity (not a registered mailbox):
-`agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
-Do not claim the ASI:One submission form was submitted.
+The dashboard at http://127.0.0.1:8765 loaded. The structural-audit panel rendered the real `last_audit.json` (`fixture: false`).
 
-Stop. Do not invent metrics. Do not claim a Claude live A/B you did not run.
+The local client reply named `for_renewal` in `shop/billing/discount_policy.py`. Identity (seed `ledger-runtime-local-demo-v1`, not a registered mailbox): `agent1qvntv3znytwfkn4u5zz9qsfekvw906l62k6hhg0e9xe3d6qx6s62cxaq2rq`.
+
+`python -m pytest tests -q`: 49 passed.

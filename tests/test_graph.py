@@ -41,3 +41,7 @@ def test_graph_and_hierarchy_endpoints(demo_rt):
     assert "Code knowledge graph" in fallback
     assert "Memory hierarchy" in fallback
     assert "replay-banner" in fallback
+    assert "Structural audit" in fallback
+    audit = client.get("/api/audit").json()
+    assert "large_sccs" in audit
+    assert audit.get("fixture") is True or audit.get("kind") == "structural"

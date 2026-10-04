@@ -43,6 +43,12 @@ def create_app(runtime: LedgerRuntime | None = None) -> FastAPI:
     def health():
         return {"ok": True, "repo": str(runtime.cfg.repo_root)}
 
+    @app.get("/api/audit")
+    def audit_view():
+        from ledger.audit import load_audit_for_dashboard
+
+        return load_audit_for_dashboard(runtime.cfg)
+
     @app.get("/api/state")
     def state(session_id: str | None = None):
         return runtime.dashboard_state(session_id)

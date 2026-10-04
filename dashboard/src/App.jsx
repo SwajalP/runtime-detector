@@ -7,16 +7,19 @@ export default function App() {
   const [graph, setGraph] = useState({ nodes: [], edges: [] });
   const [hierarchy, setHierarchy] = useState(null);
   const [ab, setAb] = useState("");
+  const [audit, setAudit] = useState(null);
 
   async function refresh() {
-    const [s, g, h] = await Promise.all([
+    const [s, g, h, a] = await Promise.all([
       fetch("/api/state").then((r) => r.json()),
       fetch("/api/graph").then((r) => r.json()),
       fetch("/api/graph/hierarchy").then((r) => r.json()),
+      fetch("/api/audit").then((r) => r.json()).catch(() => null),
     ]);
     setState(s);
     setGraph(g);
     setHierarchy(h);
+    setAudit(a);
   }
 
   useEffect(() => {
@@ -149,6 +152,15 @@ export default function App() {
         <div className="card" style={{ gridColumn: "1 / -1" }}>
           <h2>Memory hierarchy · L0 / L1 / L2 / backing</h2>
           <MemoryHierarchy hierarchy={hierarchy} />
+        </div>
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Structural audit · SCC / min-cut / clones</h2>
+          <p className="muted">
+            {audit?.fixture
+              ? audit.label || "fixture JSON — not a live measurement"
+              : audit?.disclaimer || "structural audit computed from the index"}
+          </p>
+          <pre>{audit ? JSON.stringify(audit, null, 2) : ""}</pre>
         </div>
         <div className="card compare">
           <h2>Last A/B</h2>

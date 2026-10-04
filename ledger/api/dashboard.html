@@ -121,6 +121,11 @@
       <div id="hier"></div>
     </div>
     <div class="card wide">
+      <h2>Structural audit · SCC / min-cut / clones</h2>
+      <p class="muted" id="audit-note"></p>
+      <pre id="audit"></pre>
+    </div>
+    <div class="card wide">
       <h2>Last A/B</h2>
       <div id="ab-summary" class="muted"></div>
       <pre id="ab"></pre>
@@ -260,15 +265,34 @@
       $("hier").innerHTML = stats + `<div class="hier-grid">${cols}</div>`;
     }
 
+    function renderAudit(audit) {
+      const note = $("audit-note");
+      const pre = $("audit");
+      if (!note || !pre) return;
+      if (!audit) {
+        note.textContent = "audit unavailable";
+        pre.textContent = "";
+        return;
+      }
+      if (audit.fixture) {
+        note.textContent = audit.label || "fixture JSON — not a live measurement";
+      } else {
+        note.textContent = audit.disclaimer || "structural audit computed from the index";
+      }
+      pre.textContent = JSON.stringify(audit, null, 2);
+    }
+
     async function refresh() {
-      const [state, graph, hier] = await Promise.all([
+      const [state, graph, hier, audit] = await Promise.all([
         (await fetch("/api/state")).json(),
         (await fetch("/api/graph")).json(),
         (await fetch("/api/graph/hierarchy")).json(),
+        (await fetch("/api/audit")).json(),
       ]);
       renderState(state);
       renderGraph(graph);
       renderHier(hier);
+      renderAudit(audit);
     }
     async function boot() {
       await refresh();
