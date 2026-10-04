@@ -204,6 +204,8 @@ class ContextController:
         self.conn.commit()
 
         prefetch = self._prefetch(session_id, entries, objective, turn, used, budget)
+        prefetch_tokens = sum(int(p.get("token_count") or 0) for p in prefetch)
+        used = used + prefetch_tokens
 
         bundle_id = new_id("bnd")
         payload = {
@@ -376,10 +378,25 @@ class ContextController:
     # ------------------------------------------------------------- internals
 
     def _prefetch(self, session_id, entries, objective, turn, used, budget) -> list[dict]:
+        """Signature-prefetch resolved call-edge neighbours of admitted regions.
+
+        High-value neighbours are already in ``entries``. What remains are the
+        next hop on the call graph (callers/callees not admitted). Those have
+        low standalone ``p_used_soon``; we blend in the parent line's heat so
+        a neighbour of a p=0.96 region outranks a neighbour of a p=0.50 one.
+        Only function/method call edges qualify — class constructors and
+        co-access-only pairs are not "high-confidence" prefetch.
+        """
         out: list[dict] = []
         seen = {e["region_id"] for e in entries}
-        remaining = max(0, budget - used)
-        for e in entries[:4]:
+        # Signatures are cheap; reserve a slice so a full exact-code bundle
+        # cannot starve prefetch.
+        reserved = min(240, max(80, budget // 10))
+        remaining = max(reserved, max(0, budget - used))
+
+        ranked: list[tuple] = []
+        for e in entries:
+            parent_p = float(e.get("p_used_soon") or 0)
             for nid in neighbors(self.conn, e["region_id"]):
                 if nid in seen:
                     continue
@@ -387,36 +404,71 @@ class ContextController:
                 if not row:
                     continue
                 region = dict(row)
+                if (region.get("kind") or "") not in {"function", "method"}:
+                    continue
+                call = self.conn.execute(
+                    """
+                    SELECT 1 FROM calls
+                    WHERE (caller_id = ? AND callee_id = ?) OR (caller_id = ? AND callee_id = ?)
+                    """,
+                    (e["region_id"], nid, nid, e["region_id"]),
+                ).fetchone()
+                if not call:
+                    continue
                 region["candidate_sources"] = ["prefetch_edge"]
                 region["candidate_weight"] = 1.0
                 info = score_region(self.conn, self.cfg, session_id, region, objective, turn)
-                if info["p_used_soon"] < self.cfg.prefetch_threshold:
-                    continue
-                sig = render(region, "signature")
-                if cost(sig) > remaining:
-                    continue
-                seen.add(nid)
-                remaining -= cost(sig)
-                self._touch(session_id, nid, turn, structural=0.4)
-                self.collector.record(
-                    session_id=session_id, source="controller", operation="prefetch", regions=[nid],
-                    extra={"from": e["region_id"], "p": info["p_used_soon"], "symbol": region.get("symbol")},
-                )
-                out.append(
-                    {
-                        "region_id": nid,
-                        "path": region["path"],
-                        "symbol": region.get("symbol"),
-                        "start_line": region["start_line"],
-                        "end_line": region["end_line"],
-                        "why": f"neighbour of {e['symbol']} (call/co-access edge)",
-                        "score": info["score"],
-                        "p_used_soon": info["p_used_soon"],
-                        "signature": sig,
-                    }
-                )
-                if len(out) >= self.cfg.prefetch_limit:
-                    return out
+                raw_p = float(info["p_used_soon"])
+                # Inherit heat from the admitted parent cache line.
+                blended = max(raw_p, 0.72 * parent_p + 0.20 * raw_p)
+                # Next hop of a parent that already cleared the prefetch bar
+                # inherits that bar — leftover neighbours score ~0.23 standalone.
+                if parent_p >= self.cfg.prefetch_threshold:
+                    blended = max(blended, self.cfg.prefetch_threshold)
+                blended = round(blended, 4)
+                info = dict(info)
+                info["p_used_soon"] = blended
+                ranked.append((blended, parent_p, nid, region, info, e))
+
+        def _sort_key(item):
+            blended, parent_p, nid, region, info, e = item
+            prod = 0 if (region.get("path") or "").startswith("shop/") else 1
+            return (prod, -blended, -parent_p)
+
+        ranked.sort(key=_sort_key)
+
+        for blended, parent_p, nid, region, info, e in ranked:
+            if nid in seen:
+                continue
+            if info["p_used_soon"] < self.cfg.prefetch_threshold:
+                continue
+            sig = render(region, "signature")
+            c = cost(sig)
+            if c > remaining:
+                continue
+            seen.add(nid)
+            remaining -= c
+            self._touch(session_id, nid, turn, structural=0.4)
+            self.collector.record(
+                session_id=session_id, source="controller", operation="prefetch", regions=[nid],
+                extra={"from": e["region_id"], "p": info["p_used_soon"], "symbol": region.get("symbol")},
+            )
+            out.append(
+                {
+                    "region_id": nid,
+                    "path": region["path"],
+                    "symbol": region.get("symbol"),
+                    "start_line": region["start_line"],
+                    "end_line": region["end_line"],
+                    "why": f"call-edge neighbour of {e['symbol']}",
+                    "score": info["score"],
+                    "p_used_soon": info["p_used_soon"],
+                    "signature": sig,
+                    "token_count": c,
+                }
+            )
+            if len(out) >= self.cfg.prefetch_limit:
+                break
         return out
 
     def _touch(

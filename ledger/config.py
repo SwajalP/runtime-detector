@@ -59,7 +59,9 @@ class LedgerConfig:
     secret_globs: tuple[str, ...] = SECRET_GLOBS
     language: str = "python"
     parser_backend: str = "tree-sitter"  # or "ast"
-    prefetch_threshold: float = 0.62
+    # Standalone leftover neighbors score ~0.23; blended with parent heat they
+    # land ~0.45–0.75. 0.62 never fired because those neighbors were already admitted.
+    prefetch_threshold: float = 0.45
     # Re-run `pytest` under coverage when the agent runs it via Bash so the
     # program trace can be joined with the agent trace. Cheap for small suites.
     trace_agent_tests: bool = True
@@ -106,6 +108,10 @@ class LedgerConfig:
                     cfg.weights.update({k: float(v) for k, v in data["weights"].items()})
             except Exception:
                 pass
+        # First shipped default (0.62) never fired: leftover call-edge
+        # neighbours score ~0.23 standalone. Treat it as unset.
+        if cfg.prefetch_threshold == 0.62:
+            cfg.prefetch_threshold = 0.45
         return cfg
 
     def to_json(self) -> dict:

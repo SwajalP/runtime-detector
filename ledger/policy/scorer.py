@@ -58,7 +58,9 @@ def score_region(
     if "callee" in sources and "caller" in sources:
         G = 1.0
     if "prefetch_edge" in sources:
-        G = max(G, 0.7)
+        # Resolved call-graph neighbour of an admitted line: stronger than a
+        # generic union candidate, weaker than an explicit caller/callee source.
+        G = max(G, 0.85)
 
     # H: historical co-access
     H = _clip(float(ws.get("co_access_score", 0) or 0))
