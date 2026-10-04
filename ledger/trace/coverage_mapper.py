@@ -38,6 +38,7 @@ def load_coverage_file(coverage_json_path: Path) -> dict:
 def _normalize(root: Path, path: str) -> str:
     p = Path(path)
     try:
-        return str(p.resolve().relative_to(root.resolve()))
+        resolved = p.resolve() if p.is_absolute() else (root / p).resolve()
+        return str(resolved.relative_to(root.resolve()))
     except ValueError:
         return path.replace("\\", "/")

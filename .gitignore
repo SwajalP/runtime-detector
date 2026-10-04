@@ -20,6 +20,8 @@ demo_repo/.pytest_cache/
 demo_repo/.coverage
 demo_repo/**/__pycache__/
 .claude/settings.local.json
+demo_repo/.claude/
+demo_repo/.mcp.json
 *.pyc
 .ruff_cache/
 uagents_core.log

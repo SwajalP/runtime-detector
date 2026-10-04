@@ -64,6 +64,8 @@ def run_pytest_traced(
                 "LEDGER_REPO": str(cfg.repo_root),
                 "LEDGER_TRACE_DIR": str(trace_dir),
                 "COVERAGE_FILE": str(trace_dir / ".coverage"),
+                # sysmon (Python 3.14 default) cannot record per-test dynamic contexts
+                "COVERAGE_CORE": "ctrace",
                 "PYTHONPATH": os.pathsep.join([str(cfg.repo_root), env.get("PYTHONPATH", "")]).rstrip(os.pathsep),
             }
         )

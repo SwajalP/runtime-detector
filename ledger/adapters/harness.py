@@ -41,7 +41,7 @@ class SimulatedAgent:
 
     def run(self, task: dict) -> dict:
         rt = self.runtime
-        session_id = rt.ensure_session(
+        session_id = rt.new_session(
             agent="simulated", condition="ledger" if self.use_ledger else "baseline", task_id=task["id"]
         )
         rt.set_objective(session_id, task["prompt"])
