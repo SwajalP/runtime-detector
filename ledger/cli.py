@@ -274,6 +274,19 @@ def delete_session(session_id: str, repo: Optional[Path] = RepoOpt):
 
 
 @app.command()
+def agentverse(
+    repo: Optional[Path] = RepoOpt,
+    local: bool = typer.Option(True, "--local/--mailbox", help="Bind localhost, or register an Agentverse mailbox"),
+    port: int = typer.Option(8000, help="Local HTTP port when --local"),
+    seed: Optional[str] = typer.Option(None, help="Deterministic agent seed"),
+):
+    """Run the Fetch.ai uAgent exposing LedgerContextProtocol + chat routing."""
+    from ledger.agentverse.agent import run_agent
+
+    run_agent(repo=repo, local=local, port=port, seed=seed)
+
+
+@app.command()
 def version():
     console.print(__version__)
 

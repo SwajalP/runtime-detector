@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+from ledger.api.graph import make_router
 from ledger.eval.runner import compare_task, load_tasks, run_task
 from ledger.runtime import LedgerRuntime
 
@@ -35,6 +36,8 @@ def create_app(runtime: LedgerRuntime | None = None) -> FastAPI:
             pass
 
     runtime.collector.add_listener(_push)
+    app.state.runtime = runtime
+    app.include_router(make_router(runtime))
 
     @app.get("/api/health")
     def health():

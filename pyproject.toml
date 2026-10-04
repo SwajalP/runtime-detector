@@ -20,24 +20,30 @@ dependencies = [
   "httpx>=0.27.0",
   "pyyaml>=6.0.2",
   "watchfiles>=0.24.0",
+  "tree-sitter>=0.23.0",
+  "tree-sitter-python>=0.23.0",
 ]
 
 [project.optional-dependencies]
-treesitter = [
-  "tree-sitter>=0.23.0",
-  "tree-sitter-python>=0.23.0",
+agentverse = [
+  "uagents>=0.22.0",
 ]
 dev = [
   "ruff>=0.6.0",
-  "tree-sitter>=0.23.0",
-  "tree-sitter-python>=0.23.0",
+  "uagents>=0.22.0",
 ]
 
 [project.scripts]
 ledger = "ledger.cli:app"
 
+[project.entry-points.pytest11]
+ledger = "ledger.trace.pytest_plugin"
+
 [tool.setuptools.packages.find]
 include = ["ledger*"]
+
+[tool.setuptools.package-data]
+"ledger.api" = ["dashboard.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

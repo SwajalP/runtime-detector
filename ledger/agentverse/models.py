@@ -189,5 +189,11 @@ class MetricsResponse(Model):
     rendered_text: str = ""
 
 
-REQUEST_MODELS = (ContextRequest, SearchRequest, ExplainRequest, TraceRequest, MetricsRequest)
-RESPONSE_MODELS = (ContextBundle, SearchResponse, ExplainResponse, TraceResponse, MetricsResponse, ErrorResponse)
+class ChatText(Model):
+    """Plain-text chat turn (keyword-routed by :func:`service.parse_intent`)."""
+
+    text: str
+
+
+REQUEST_MODELS = (ContextRequest, SearchRequest, ExplainRequest, TraceRequest, MetricsRequest, ChatText)
+RESPONSE_MODELS = (ContextBundle, SearchResponse, ExplainResponse, TraceResponse, MetricsResponse, ErrorResponse, ChatText)

@@ -22,3 +22,5 @@ demo_repo/**/__pycache__/
 .claude/settings.local.json
 *.pyc
 .ruff_cache/
+uagents_core.log
+*.log
