@@ -71,6 +71,36 @@ def test_mailbox_missing_key_errors(monkeypatch):
     assert "not submitted" in str(exc.value).lower() or "was not submitted" in str(exc.value)
 
 
+def test_missing_mailbox_key_falls_back_to_local(monkeypatch):
+    from ledger.agentverse.identity import resolve_agent_mode
+
+    monkeypatch.delenv("AGENTVERSE_API_KEY", raising=False)
+    monkeypatch.delenv("AGENT_SEED", raising=False)
+    local, key, seed = resolve_agent_mode(True)
+    assert local is True
+    assert key is None
+    assert seed is None
+    monkeypatch.setenv("AGENTVERSE_API_KEY", "test-key")
+    monkeypatch.setenv("AGENT_SEED", "test-seed")
+    local, key, seed = resolve_agent_mode(True)
+    assert local is False
+    assert key == "test-key"
+    assert seed == "test-seed"
+
+
+def test_local_client_fallback_returns_for_renewal(demo_rt):
+    from ledger.agentverse.client import local_service_text
+
+    text = local_service_text(
+        "find the code for renewal invoices ignoring loyalty discounts",
+        chat=False,
+        seed="for_renewal",
+        repo=demo_rt.cfg.repo_root,
+    )
+    assert "for_renewal" in text
+    assert "shop/billing/discount_policy.py" in text
+
+
 def test_chat_utterance_returns_for_renewal_and_json(demo_rt):
     svc = LedgerService(runtime=demo_rt)
     text, payload = svc.handle_chat_text(CHAT_UTTERANCE, requester="agent1qlocaldemo")

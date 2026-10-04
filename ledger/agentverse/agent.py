@@ -16,7 +16,7 @@ from uagents_core.registration import AgentRegistrationPolicy
 
 from ledger.agentverse import AGENT_NAME, PROTOCOL_NAME, PROTOCOL_VERSION
 from ledger.agentverse.asi_one import AGENTVERSE_ADDRESS_PLACEHOLDER, ASI_ONE_CHAT_AVAILABLE, build_asi_one_protocol
-from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, require_mailbox_credentials
+from ledger.agentverse.identity import DEMO_AGENT_SEED, LOCAL_IDENTITY_LABEL, resolve_agent_mode
 from ledger.agentverse.models import (
     ChatText,
     ContextBundle,
@@ -155,11 +155,18 @@ def run_agent(
     port: int = 8000,
     seed: str | None = None,
 ) -> None:
-    mailbox_api_key = None
+    local_mode, mailbox_api_key, env_seed = resolve_agent_mode(mailbox_requested=not local)
+    if not local and local_mode:
+        print(
+            "Missing AGENTVERSE_API_KEY or AGENT_SEED; falling back to local mode. "
+            "No mailbox was registered. ASI:One submission was not submitted.",
+            flush=True,
+        )
+    local = local_mode
     if local:
         seed = seed or DEMO_AGENT_SEED
+        mailbox_api_key = None
     else:
-        mailbox_api_key, env_seed = require_mailbox_credentials()
         seed = seed or env_seed
     agent = build_agent(repo, local=local, port=port, seed=seed, mailbox_api_key=mailbox_api_key)
     if local:
@@ -199,6 +206,5 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    if args.mailbox:
-        require_mailbox_credentials()
+    # Missing mailbox credentials fall back inside run_agent. They do not crash.
     run_agent(repo=args.repo, local=not args.mailbox, port=args.port, seed=args.seed)

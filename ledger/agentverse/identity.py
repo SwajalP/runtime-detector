@@ -19,6 +19,22 @@ def demo_address(seed: str = DEMO_AGENT_SEED) -> str:
     return Identity.from_seed(seed, 0).address
 
 
+def resolve_agent_mode(mailbox_requested: bool) -> tuple[bool, str | None, str | None]:
+    """Return ``(local, api_key, seed)``.
+
+    A missing ``AGENTVERSE_API_KEY`` or ``AGENT_SEED`` falls back to local mode
+    and does not raise. Callers that require a mailbox still use
+    ``require_mailbox_credentials``, which exits.
+    """
+    if not mailbox_requested:
+        return True, None, None
+    key = os.environ.get("AGENTVERSE_API_KEY", "").strip()
+    seed = os.environ.get("AGENT_SEED", "").strip()
+    if not key or not seed:
+        return True, None, None
+    return False, key, seed
+
+
 def require_mailbox_credentials() -> tuple[str, str]:
     """Return ``(AGENTVERSE_API_KEY, AGENT_SEED)`` or exit with a clear error.
 
