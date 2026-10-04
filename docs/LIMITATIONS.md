@@ -8,28 +8,28 @@ The shop in `demo_repo` is a synthetic billing repository. The agent in `ledger 
 
 ## Two different measurements
 
-**Last recorded suite eval** (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, already in the README). This session did not re-run that suite. Numbers below are copied from that recorded run:
+**Suite eval measured 2026-10-04** (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 12.9 s), after the call-graph fix. Same numbers as the README:
 
 - Success 12/12 both conditions.
-- Repo search/read calls 191 → 9. Repo tokens including injected context 84,396 → 23,647.
-- Median time-to-target 0.468 s → 0.522 s (+11.5%). Mean calls-to-target 2.167 → 1.0.
-- Prefetch precision 0.5 (6 prefetches, 3 later used). `renewal-discount` was 1/1. Held-out tasks issued 0.
-- Stale served 0. Pollution rate 0.0. Fallback rate 0.0. Cache hit rate 0.888.
+- Repo search/read calls 203 → 8 (−96.1%). Repo tokens including injected context 94,462 → 24,744 (−73.8%).
+- Median time-to-target 0.4 s → 0.421 s (+5.2%). Mean calls-to-target 2.167 → 1.0.
+- Prefetch precision 0.8 (5 prefetches, 4 later used). `renewal-discount` was 1/1. Held-out tasks issued 0. Cap is 2 per bundle.
+- Stale served 0. Pollution rate 0.0. Fallback rate 0.0. Cache hit rate 0.907.
 
 Time-to-target is worse because LEDGER runs coverage-traced pytest before it can join the program trace. Baseline pytest is untraced and cheaper. Calls-to-target is the fairer localization metric.
 
-**Hook A/B measured this session** (`ledger ab --task renewal-discount --repo demo_repo`, 2026-10-04). Same Claude hook and MCP schema, no `claude` binary on the success path:
+**Hook A/B measured this session** (`ledger ab --task renewal-discount --repo demo_repo`, 2026-10-04). Same Claude hook and MCP schema. `claude -p` returned `Invalid API key · Please run /login` (`claude.ran: false`):
 
 | Condition | Target found | Advice | Repo calls | Ledger calls | Repo tokens |
 |---|---|---:|---:|---:|---:|
-| Baseline (observe-only) | yes | 0 | 20 | 0 | 9,103 |
-| LEDGER (advice + ledger_context/ledger_search) | yes | 1 | 4 | 3 | 4,740 |
+| Baseline (observe-only) | yes | 0 | 20 | 0 | 9,317 |
+| LEDGER (advice + ledger_context/ledger_search) | yes | 1 | 4 | 3 | 4,928 |
 
-That ledger session issued 1 prefetch and used 0 (precision 0.0 on this one task). That is not the suite-wide precision of 0.5. Prefetch stays capped at 1–3 callees of high-score admitted regions. Spraying dozens of unused prefetches is a failed optimization; this run did not do that.
+That ledger session issued 1 prefetch and used 0 (precision 0.0 on this one task). That is not the suite-wide precision of 0.8. Prefetch stays capped at 2 callees of high-score admitted regions. Spraying dozens of unused prefetches is a failed optimization; this run did not do that.
 
 ## Live Claude
 
-`claude` is on PATH. `claude -p` returned `Invalid API key · Please run /login` in about 2.6 s. `ledger ab` stores that under `claude.ran: false`. It does not copy hook-driver numbers into a fake Claude row. A human still has to run `/login` before `ledger eval --agent claude` or a logged-in `claude -p` can be a live model A/B.
+`claude` is on PATH. `claude -p` returned `Invalid API key · Please run /login`. `ledger ab` stores that under `claude.ran: false`. It does not copy hook-driver numbers into a fake Claude row. A human still has to run `/login` before `ledger eval --agent claude` or a logged-in `claude -p` can be a live model A/B.
 
 `ledger run --agent claude` installs real PreToolUse / PostToolUse hooks and `.mcp.json` using the venv interpreter. `LEDGER_OBSERVE_ONLY=1` records events and does not advise. That install path was not A/B-measured with a live Claude model.
 

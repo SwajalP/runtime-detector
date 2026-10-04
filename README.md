@@ -6,36 +6,36 @@ This is a **logical context cache** for source regions, not a model provider’s
 
 Same model. Same task. Same repository.
 
-Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 15.8 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
+Measured A/B (`ledger eval --repo demo_repo --all`, simulated agent, 12 tasks × 1, 2026-10-04, 12.9 s). LEDGER’s injected tokens and context calls are counted against LEDGER.
 
-**Headline: equal success, far fewer repository calls and tokens.** 12/12 both conditions. Repo search/read calls −95.3% (191 → 9). Repo tokens including LEDGER-injected context −72.0% (84,396 → 23,647).
+**Headline: equal success, far fewer repository calls and tokens.** 12/12 both conditions. Repo search/read calls −96.1% (203 → 8). Repo tokens including LEDGER-injected context −73.8% (94,462 → 24,744).
 
 | Condition | Success | Repo search/read calls | Total tool calls (incl. LEDGER) | Repo tokens (incl. injected) | Median time to target | Mean calls to target |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 12/12 | 191 | 191 | 84,396 | 0.468 s | 2.167 |
-| LEDGER | 12/12 | 9 | 65 | 23,647 | 0.522 s | 1.0 |
-| Change | equal | −95.3% | −66.0% | −72.0% | +11.5% | −53.9% |
+| Baseline | 12/12 | 203 | 203 | 94,462 | 0.4 s | 2.167 |
+| LEDGER | 12/12 | 8 | 64 | 24,744 | 0.421 s | 1.0 |
+| Change | equal | −96.1% | −68.5% | −73.8% | +5.2% | −53.9% |
 
-Controller on this run: cache hit rate 0.888 · prefetch precision 0.5 (6 prefetches, 3 later used — unused call successors of HIGH-score parents only; renewal-discount was 1/1; held-out tasks issued 0) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
+Controller on this run: cache hit rate 0.907 · prefetch precision 0.8 (5 prefetches, 4 later used — capped at 2 per bundle; renewal-discount was 1/1; held-out tasks issued 0) · pollution rate 0.0 · stale served 0 · fallback rate 0.0.
 
-Median time-to-target is worse (+11.5%). That clock includes the coverage-traced pytest LEDGER runs first so the program trace can join the agent trace; baseline’s pytest is untraced and cheaper. Calls-to-target is better (1.0 vs 2.167): the target region is already in the first bundle. Do not read the time delta as a localization regression.
+Median time-to-target is worse (+5.2%). That clock includes the coverage-traced pytest LEDGER runs first so the program trace can join the agent trace; baseline’s pytest is untraced and cheaper. Calls-to-target is better (1.0 vs 2.167): the target region is already in the first bundle. Do not read the time delta as a localization regression.
 
 | Task | Family | Base ✓ | LEDGER ✓ | Base calls | LEDGER calls | Base tokens | LEDGER tokens | Δ tokens |
 |---|---|:-:|:-:|---:|---:|---:|---:|---:|
-| renewal-discount | bug | ✓ | ✓ | 20 | 7 | 11,163 | 2,548 | −77.2% |
-| calculate-total | cross-layer | ✓ | ✓ | 18 | 6 | 7,465 | 2,115 | −71.7% |
-| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,706 | 1,576 | −76.5% |
-| renewal-controller | cross-layer | ✓ | ✓ | 10 | 4 | 4,703 | 1,748 | −62.8% |
-| failing-test | bug | ✓ | ✓ | 20 | 8 | 9,995 | 3,128 | −68.7% |
-| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,301 | 2,367 | −74.6% |
-| tax-adapter | cross-layer | ✓ | ✓ | 12 | 5 | 3,674 | 1,847 | −49.7% |
-| schema-invoice | cross-layer | ✓ | ✓ | 16 | 4 | 7,672 | 1,405 | −81.7% |
-| repeat-loyalty-lookup | repeated | ✓ | ✓ | 18 | 6 | 8,376 | 2,143 | −74.4% |
-| webhook-renewal | cross-layer | ✓ | ✓ | 13 | 5 | 4,831 | 2,057 | −57.4% |
-| held-out-proration | repeated | ✓ | ✓ | 15 | 5 | 4,602 | 1,297 | −71.8% |
-| held-out-dunning | bug | ✓ | ✓ | 17 | 5 | 5,908 | 1,416 | −76.0% |
+| renewal-discount | bug | ✓ | ✓ | 21 | 9 | 11,851 | 2,916 | −75.4% |
+| calculate-total | cross-layer | ✓ | ✓ | 18 | 5 | 7,961 | 2,027 | −74.5% |
+| invoice-save | cross-layer | ✓ | ✓ | 13 | 4 | 6,780 | 1,566 | −76.9% |
+| renewal-controller | cross-layer | ✓ | ✓ | 11 | 4 | 5,515 | 1,720 | −68.8% |
+| failing-test | bug | ✓ | ✓ | 22 | 6 | 10,970 | 2,386 | −78.2% |
+| promotion-confuser | bug | ✓ | ✓ | 19 | 6 | 9,777 | 2,315 | −76.3% |
+| tax-adapter | cross-layer | ✓ | ✓ | 13 | 5 | 3,827 | 1,829 | −52.2% |
+| schema-invoice | cross-layer | ✓ | ✓ | 16 | 5 | 7,595 | 1,563 | −79.4% |
+| repeat-loyalty-lookup | repeated | ✓ | ✓ | 21 | 5 | 9,411 | 2,049 | −78.2% |
+| webhook-renewal | cross-layer | ✓ | ✓ | 15 | 5 | 7,021 | 2,282 | −67.5% |
+| held-out-proration | repeated | ✓ | ✓ | 15 | 5 | 4,939 | 1,356 | −72.5% |
+| held-out-dunning | bug | ✓ | ✓ | 19 | 5 | 8,815 | 2,735 | −69.0% |
 
-Re-run `ledger eval --repo demo_repo --all` and replace this table if the code or tasks change. Do not invent metrics. The 12-task table above is the last recorded suite eval (2026-10-04). It was not re-run in the hook-A/B session.
+Re-run `ledger eval --repo demo_repo --all` and replace this table if the code or tasks change. Do not invent metrics. The 12-task table above is the suite eval measured 2026-10-04 after the call-graph fix (12.9 s).
 
 ## Hook A/B (no Claude login)
 
@@ -43,8 +43,8 @@ Re-run `ledger eval --repo demo_repo --all` and replace this table if the code o
 
 | Condition | Target found | Advice | Repo calls | Ledger calls | Repo tokens |
 |---|---|---:|---:|---:|---:|
-| Baseline (observe-only) | yes | 0 | 20 | 0 | 9,103 |
-| LEDGER | yes | 1 | 4 | 3 | 4,740 |
+| Baseline (observe-only) | yes | 0 | 20 | 0 | 9,317 |
+| LEDGER | yes | 1 | 4 | 3 | 4,928 |
 
 `claude -p` was probed and did not run: `Invalid API key · Please run /login`. That fact is stored on the report as `claude.ran: false`. Hook numbers are not labeled as a live Claude result.
 
@@ -116,7 +116,7 @@ Judge copy: 50- and 150-word blurbs in `docs/TRACKS.md`. Three-minute script: `d
 
 ## Honest limits
 
-Simulated 12-task eval, not a live Claude A/B and not SWE-bench. Most tasks score whether the target file was seen. One repeat, no confidence interval. Median time-to-target on that eval is worse (+11.5%, 0.468 s → 0.522 s) because LEDGER runs coverage-traced pytest first; calls-to-target is the fairer localization metric (1.0 vs 2.167). Suite prefetch precision on that eval is 0.5 (6 issued, 3 used). The hook A/B above is a separate measurement. Stale-serve 0 is the hash-before-serve invariant, not a large-N proof. Tracing is Python + pytest/coverage. Tree-sitter is syntax. This is not a model KV cache and not “grep is slow.” Retrieval is not claimed as new (Aider, CodeGrep, CodeNib); the contribution is the online dual-trace controller. Policy weights are constants. One demo repo; lexical traps are intentional. Vite `dashboard/dist` is optional and gitignored. Full write-up: `docs/LIMITATIONS.md`.
+Simulated 12-task eval, not a live Claude A/B and not SWE-bench. Most tasks score whether the target file was seen. One repeat, no confidence interval. Median time-to-target on that eval is worse (+5.2%, 0.4 s → 0.421 s) because LEDGER runs coverage-traced pytest first; calls-to-target is the fairer localization metric (1.0 vs 2.167). Suite prefetch precision on that eval is 0.8 (5 issued, 4 used). The hook A/B above is a separate measurement (one prefetch issued, none used). Stale-serve 0 is the hash-before-serve invariant, not a large-N proof. Tracing is Python + pytest/coverage. Tree-sitter is syntax. This is not a model KV cache and not “grep is slow.” Retrieval is not claimed as new (Aider, CodeGrep, CodeNib); the contribution is the online dual-trace controller. Policy weights are constants. One demo repo; lexical traps are intentional. Vite `dashboard/dist` is optional and gitignored. Full write-up: `docs/LIMITATIONS.md`.
 
 ## Layout
 

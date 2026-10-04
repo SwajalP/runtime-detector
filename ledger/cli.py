@@ -410,6 +410,7 @@ def audit(repo: Optional[Path] = RepoOpt):
 
 @app.command()
 def version():
+    """Print the installed LEDGER version."""
     console.print(__version__)
 
 
